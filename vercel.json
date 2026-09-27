@@ -1,14 +1,12 @@
 {
   "version": 2,
+  "framework": "vite",
+  "buildCommand": "npm --prefix frontend install && npm --prefix frontend run build",
+  "outputDirectory": "frontend/dist",
   "functions": {
     "api/index.py": {
       "maxDuration": 60,
-      "includeFiles": "{backend/**,frontend/dist/**}",
-      "excludeFiles": "{data/**,models/checkpoints/**,models/weights/**,pip_cache/**,frontend/node_modules/**}"
-    },
-    "backend/app/main.py": {
-      "maxDuration": 60,
-      "includeFiles": "{backend/**,frontend/dist/**}",
+      "includeFiles": "backend/**",
       "excludeFiles": "{data/**,models/checkpoints/**,models/weights/**,pip_cache/**,frontend/node_modules/**}"
     }
   },
@@ -19,14 +17,6 @@
     },
     {
       "source": "/static/(.*)",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/assets/(.*)",
-      "destination": "/frontend/dist/assets/$1"
-    },
-    {
-      "source": "/(.*)",
       "destination": "/api/index.py"
     }
   ]
