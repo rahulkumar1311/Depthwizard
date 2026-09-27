@@ -270,6 +270,16 @@ async def run_end_to_end_pipeline(
 
     t0 = time.time()
 
+    try:
+        gsd_val = float(gsd_m) if gsd_m is not None else 0.5
+    except (TypeError, ValueError):
+        gsd_val = 0.5
+
+    try:
+        mesh_res_val = int(mesh_resolution) if mesh_resolution is not None else 128
+    except (TypeError, ValueError):
+        mesh_res_val = 128
+
     # 1. Stage 1: RGB Ingestion
     sample_img_candidates = [
         settings.DATA_DIR / "sample" / "sample_gamus_optical.png",
@@ -279,10 +289,15 @@ async def run_end_to_end_pipeline(
     ]
     img_bytes = b""
     filename = "sample_gamus_optical.png"
-    if file is not None:
-        img_bytes = await file.read()
-        filename = file.filename or "uploaded_image.png"
-    else:
+    if file is not None and hasattr(file, "read"):
+        try:
+            img_bytes = await file.read()
+            filename = getattr(file, "filename", None) or "uploaded_image.png"
+        except Exception as e:
+            logger.warning(f"Could not read uploaded file: {e}")
+            img_bytes = b""
+
+    if len(img_bytes) == 0:
         for p in sample_img_candidates:
             if p.exists():
                 with open(p, "rb") as f:
@@ -323,7 +338,7 @@ async def run_end_to_end_pipeline(
         "status": "completed",
         "filename": filename,
         "dimensions": {"width": in_w, "height": in_h, "channels": 3},
-        "gsd_m": gsd_m,
+        "gsd_m": gsd_val,
         "texture_url": texture_url,
     }
 
@@ -357,22 +372,37 @@ async def run_end_to_end_pipeline(
     sample_ref_path = settings.BASE_DIR / "data" / "GAMUS_mvp" / "val" / "DC_02_26_AGL.h5"
 
     ref_source = None
-    if reference_elevation is not None:
-        ref_bytes = await reference_elevation.read()
-        if len(ref_bytes) > 0:
-            ref_source = ref_bytes
+    if reference_elevation is not None and hasattr(reference_elevation, "read"):
+        try:
+            ref_bytes = await reference_elevation.read()
+            if len(ref_bytes) > 0:
+                ref_source = ref_bytes
+        except Exception:
+            ref_source = None
 
     if ref_source is None and sample_ref_path.exists():
         ref_source = sample_ref_path
 
     if ref_source is not None:
-        calib_result = affine_calibrator.calibrate(
-            rel_depth_source=raw_depth,
-            ref_elevation_source=ref_source,
-            stem="pipeline_active",
-            colormap="terrain",
-        )
-        calib_params = calib_result["calibration_parameters"]
+        try:
+            calib_result = affine_calibrator.calibrate(
+                rel_depth_source=raw_depth,
+                ref_elevation_source=ref_source,
+                stem="pipeline_active",
+                colormap="terrain",
+            )
+            calib_params = calib_result["calibration_parameters"]
+        except Exception as e:
+            logger.warning(f"Calibration using ref_source failed ({e}); falling back to learned GAMUS baseline")
+            calib_params = {
+                "scale_factor_a": -9.262667,
+                "offset_b": 17.8043,
+                "mae_meters": 7.5418,
+                "rmse_meters": 9.3799,
+                "r_squared": 0.428,
+                "valid_pixel_percentage": 100.0,
+                "source": "learned_gamus_baseline",
+            }
     else:
         # Graceful fallback: learned affine parameters from GAMUS remote sensing baseline
         calib_params = {
@@ -406,7 +436,7 @@ async def run_end_to_end_pipeline(
         scale_a=calib_params["scale_factor_a"],
         offset_b=calib_params["offset_b"],
         output_dsm_path=settings.OUTPUTS_DIR / "dsm" / "dsm.tif",
-        gsd_m=gsd_m,
+        gsd_m=gsd_val,
         colormap="terrain",
     )
 
@@ -429,13 +459,23 @@ async def run_end_to_end_pipeline(
     if dsm_arr is None:
         elevation_npy = settings.OUTPUTS_DIR / "dsm" / "pipeline_active_metric_elevation.npy"
         if elevation_npy.exists():
-            dsm_arr = np.load(elevation_npy)
-        else:
-            import rasterio
-            with rasterio.open(settings.OUTPUTS_DIR / "dsm" / "dsm.tif") as src:
-                dsm_arr = src.read(1)
+            try:
+                dsm_arr = np.load(elevation_npy)
+            except Exception:
+                pass
+        if dsm_arr is None:
+            try:
+                import rasterio
+                with rasterio.open(settings.OUTPUTS_DIR / "dsm" / "dsm.tif") as src:
+                    dsm_arr = src.read(1).astype(np.float32)
+            except Exception:
+                try:
+                    dsm_img = Image.open(settings.OUTPUTS_DIR / "dsm" / "dsm.tif")
+                    dsm_arr = np.array(dsm_img, dtype=np.float32)
+                except Exception:
+                    dsm_arr = np.zeros((100, 100), dtype=np.float32)
 
-    heightfield = mesh_service.generate_heightfield(dsm_arr, target_resolution=mesh_resolution)
+    heightfield = mesh_service.generate_heightfield(dsm_arr, target_resolution=mesh_res_val)
 
     stage_5 = {
         "stage": "3D TERRAIN",

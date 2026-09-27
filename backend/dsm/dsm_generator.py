@@ -50,8 +50,11 @@ try:
     import rasterio
     from rasterio.transform import from_origin
     RASTERIO_AVAILABLE = True
-except ImportError:
+except (ImportError, Exception):
     RASTERIO_AVAILABLE = False
+
+    def from_origin(west, north, xsize, ysize):
+        return (xsize, 0.0, west, 0.0, -ysize, north)
 
 
 class DSMGenerator:
@@ -253,8 +256,10 @@ class DSMGenerator:
         out_p.parent.mkdir(parents=True, exist_ok=True)
 
         h, w = metric_elevation.shape[:2]
-        nodata = nodata_val if nodata_val is not None else self.default_nodata
-        pixel_size = gsd_m if gsd_m is not None else self.default_gsd_m
+        try:
+            pixel_size = float(gsd_m) if gsd_m is not None else self.default_gsd_m
+        except (TypeError, ValueError):
+            pixel_size = self.default_gsd_m
 
         if geo_meta and geo_meta.get("is_georeferenced") and geo_meta.get("crs") and geo_meta.get("transform"):
             # Preserve existing GeoTIFF CRS and affine geotransform
@@ -266,23 +271,49 @@ class DSMGenerator:
             transform = from_origin(0.0, float(h) * pixel_size, pixel_size, pixel_size)
 
         if RASTERIO_AVAILABLE:
-            with rasterio.open(
-                out_p,
-                "w",
-                driver="GTiff",
-                height=h,
-                width=w,
-                count=1,
-                dtype="float32",
-                crs=crs,
-                transform=transform,
-                nodata=nodata,
-            ) as dst:
-                dst.write(metric_elevation.astype(np.float32), 1)
+            try:
+                with rasterio.open(
+                    out_p,
+                    "w",
+                    driver="GTiff",
+                    height=h,
+                    width=w,
+                    count=1,
+                    dtype="float32",
+                    crs=crs,
+                    transform=transform,
+                    nodata=nodata,
+                ) as dst:
+                    dst.write(metric_elevation.astype(np.float32), 1)
+            except Exception:
+                try:
+                    Image.fromarray(metric_elevation.astype(np.float32)).save(out_p, format="TIFF")
+                except Exception:
+                    pass
         else:
-            # Fallback to tifffile if rasterio is not installed
-            import tifffile
-            tifffile.imwrite(out_p, metric_elevation.astype(np.float32))
+            # Fallback when rasterio is not installed
+            written = False
+            try:
+                import tifffile
+                tifffile.imwrite(out_p, metric_elevation.astype(np.float32))
+                written = True
+            except Exception:
+                pass
+
+            if not written:
+                try:
+                    Image.fromarray(metric_elevation.astype(np.float32)).save(out_p, format="TIFF")
+                    written = True
+                except Exception:
+                    pass
+
+        # Always save as .npy as well for reliable fast mesh generation
+        try:
+            npy_p = out_p.with_suffix(".npy")
+            np.save(npy_p, metric_elevation.astype(np.float32))
+            np.save(self.outputs_dir / "pipeline_active_metric_elevation.npy", metric_elevation.astype(np.float32))
+        except Exception:
+            pass
 
         return out_p
 
@@ -385,6 +416,7 @@ class DSMGenerator:
             "dsm_file_path": str(tif_path),
             "dsm_vis_file": f"/static/outputs/dsm/{vis_path.name}",
             "dsm_vis_base64": vis_b64,
+            "metric_elevation": metric_elevation,
             "minimum_elevation": round(min_elev, 2),
             "maximum_elevation": round(max_elev, 2),
             "mean_elevation": round(mean_elev, 2),

@@ -15,18 +15,22 @@ from typing import Union, Optional, Tuple, Dict, Any
 import numpy as np
 from PIL import Image
 
-import torch
-import torch.nn.functional as F
+try:
+    import torch
+    import torch.nn.functional as F
+    TORCH_AVAILABLE = True
+except Exception:
+    torch = None
+    F = None
+    TORCH_AVAILABLE = False
 
-# Ensure DA3 source repository is in sys.path
+import tempfile
+
 WORKSPACE_DIR = Path(__file__).resolve().parent.parent.parent
 DA3_SRC_DIR = WORKSPACE_DIR / "backend" / "models" / "da3_repo" / "src"
 if str(DA3_SRC_DIR) not in sys.path:
     sys.path.insert(0, str(DA3_SRC_DIR))
 
-import tempfile
-
-# Local weights folder and HuggingFace cache directory
 LOCAL_WEIGHTS_DIR = WORKSPACE_DIR / "models" / "weights" / "da3_small"
 DEFAULT_MODEL_ID = "depth-anything/DA3-SMALL"
 
@@ -46,11 +50,23 @@ except (OSError, PermissionError):
     os.environ["TRANSFORMERS_CACHE"] = str(DEFAULT_CACHE_DIR)
 
 
-def get_default_device() -> torch.device:
+def safe_no_grad(func):
+    """Decorator that invokes torch.no_grad if PyTorch is available, or passes through safely."""
+    def wrapper(*args, **kwargs):
+        if TORCH_AVAILABLE and torch is not None:
+            with torch.no_grad():
+                return func(*args, **kwargs)
+        return func(*args, **kwargs)
+    return wrapper
+
+
+def get_default_device() -> Any:
     """Automatically selects CUDA GPU if available; otherwise falls back to CPU."""
-    if torch.cuda.is_available():
+    if TORCH_AVAILABLE and torch is not None and torch.cuda.is_available():
         return torch.device("cuda")
-    return torch.device("cpu")
+    if TORCH_AVAILABLE and torch is not None:
+        return torch.device("cpu")
+    return "cpu"
 
 
 class DepthAnything3:
@@ -59,7 +75,7 @@ class DepthAnything3:
     def __init__(
         self,
         model_id_or_path: Optional[Union[str, Path]] = None,
-        device: Optional[Union[str, torch.device]] = None,
+        device: Optional[Union[str, Any]] = None,
         cache_dir: Optional[Union[str, Path]] = DEFAULT_CACHE_DIR,
         process_res: int = 504,
         lazy_load: bool = False,
@@ -79,7 +95,7 @@ class DepthAnything3:
         if device is None:
             self.device = get_default_device()
         else:
-            self.device = torch.device(device)
+            self.device = torch.device(device) if (TORCH_AVAILABLE and torch is not None) else "cpu"
 
         self.model = None
         self.is_loaded = False
@@ -91,6 +107,13 @@ class DepthAnything3:
     def load_model(self, model_id_or_path: Optional[str] = None):
         """Loads Depth Anything 3 model weights onto the target device."""
         if self.is_loaded and model_id_or_path is None:
+            return
+
+        if not TORCH_AVAILABLE or torch is None:
+            print("[DepthWizard] Note: PyTorch not installed/available. Using structural gradient relative depth estimator.")
+            self._use_fallback = True
+            self._param_count = 0
+            self.is_loaded = True
             return
 
         if model_id_or_path:
@@ -187,7 +210,7 @@ class DepthAnything3:
         else:
             raise TypeError(f"Unsupported image input type: {type(image_input)}")
 
-    @torch.no_grad()
+    @safe_no_grad
     def predict(
         self,
         image_input: Union[str, Path, Image.Image, np.ndarray],
@@ -203,7 +226,7 @@ class DepthAnything3:
         """
         return self.predict_depth(image_input, return_normalized=False)
 
-    @torch.no_grad()
+    @safe_no_grad
     def predict_depth(
         self,
         image_input: Union[str, Path, Image.Image, np.ndarray],
@@ -250,14 +273,17 @@ class DepthAnything3:
             # Bilinear interpolation back to original input image dimensions (H, W)
             pred_h, pred_w = pred_depth.shape
             if (pred_h, pred_w) != (orig_h, orig_w):
-                depth_tensor = torch.from_numpy(pred_depth).unsqueeze(0).unsqueeze(0)  # (1, 1, H, W)
-                resized_tensor = F.interpolate(
-                    depth_tensor,
-                    size=(orig_h, orig_w),
-                    mode="bilinear",
-                    align_corners=False,
-                )
-                depth_map = resized_tensor.squeeze().cpu().numpy().astype(np.float32)
+                if TORCH_AVAILABLE and torch is not None and F is not None:
+                    depth_tensor = torch.from_numpy(pred_depth).unsqueeze(0).unsqueeze(0)  # (1, 1, H, W)
+                    resized_tensor = F.interpolate(
+                        depth_tensor,
+                        size=(orig_h, orig_w),
+                        mode="bilinear",
+                        align_corners=False,
+                    )
+                    depth_map = resized_tensor.squeeze().cpu().numpy().astype(np.float32)
+                else:
+                    depth_map = np.array(Image.fromarray(pred_depth).resize((orig_w, orig_h), Image.BILINEAR))
             else:
                 depth_map = pred_depth
 
