@@ -396,11 +396,17 @@ async def run_end_to_end_pipeline(
         mean_rel = float(np.mean(raw_depth))
         std_rel = float(np.std(raw_depth))
 
+        device_val = "cpu"
+        if depth_model is not None:
+            device_val = str(getattr(depth_model, "device", getattr(settings, "DEVICE", "cpu")))
+        else:
+            device_val = getattr(settings, "DEVICE", "cpu")
+
         stage_2 = {
             "stage": "RELATIVE DEPTH",
             "status": "completed",
             "model": "Depth Anything 3",
-            "device": str(depth_model.device),
+            "device": device_val,
             "inference_time_ms": t_depth_ms,
             "min_depth": round(min_rel, 4),
             "max_depth": round(max_rel, 4),
@@ -554,6 +560,8 @@ async def run_end_to_end_pipeline(
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         logger.exception("Pipeline execution failed")
         raise HTTPException(status_code=500, detail=f"Pipeline execution failed: {str(e)}")
 

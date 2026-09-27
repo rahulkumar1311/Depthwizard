@@ -261,31 +261,36 @@ class DepthAnything3:
             # Scale to standard DA3 relative depth domain [0.85, 3.85]
             depth_map = (rel_est * 3.0 + 0.85).astype(np.float32)
         else:
-            # Execute DA3 inference
-            prediction = self.model.inference(
-                [rgb_np],
-                process_res=self.process_res,
-            )
+            try:
+                # Execute DA3 inference
+                prediction = self.model.inference(
+                    [rgb_np],
+                    process_res=self.process_res,
+                )
 
-            # Extract depth map (N=1, H_pred, W_pred)
-            pred_depth = prediction.depth[0].astype(np.float32)
+                # Extract depth map (N=1, H_pred, W_pred)
+                pred_depth = prediction.depth[0].astype(np.float32)
 
-            # Bilinear interpolation back to original input image dimensions (H, W)
-            pred_h, pred_w = pred_depth.shape
-            if (pred_h, pred_w) != (orig_h, orig_w):
-                if TORCH_AVAILABLE and torch is not None and F is not None:
-                    depth_tensor = torch.from_numpy(pred_depth).unsqueeze(0).unsqueeze(0)  # (1, 1, H, W)
-                    resized_tensor = F.interpolate(
-                        depth_tensor,
-                        size=(orig_h, orig_w),
-                        mode="bilinear",
-                        align_corners=False,
-                    )
-                    depth_map = resized_tensor.squeeze().cpu().numpy().astype(np.float32)
+                # Bilinear interpolation back to original input image dimensions (H, W)
+                pred_h, pred_w = pred_depth.shape
+                if (pred_h, pred_w) != (orig_h, orig_w):
+                    if TORCH_AVAILABLE and torch is not None and F is not None:
+                        depth_tensor = torch.from_numpy(pred_depth).unsqueeze(0).unsqueeze(0)  # (1, 1, H, W)
+                        resized_tensor = F.interpolate(
+                            depth_tensor,
+                            size=(orig_h, orig_w),
+                            mode="bilinear",
+                            align_corners=False,
+                        )
+                        depth_map = resized_tensor.squeeze().cpu().numpy().astype(np.float32)
+                    else:
+                        depth_map = np.array(Image.fromarray(pred_depth).resize((orig_w, orig_h), Image.BILINEAR))
                 else:
-                    depth_map = np.array(Image.fromarray(pred_depth).resize((orig_w, orig_h), Image.BILINEAR))
-            else:
-                depth_map = pred_depth
+                    depth_map = pred_depth
+            except Exception as e:
+                print(f"[DepthWizard] Warning: Neural inference failed ({e}). Activating fallback gradient depth estimator.")
+                self._use_fallback = True
+                return self.predict_depth(image_input, return_normalized=return_normalized)
 
         if return_normalized:
             d_min = float(np.min(depth_map))
