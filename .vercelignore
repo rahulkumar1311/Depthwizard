@@ -1,0 +1,35 @@
+# Virtual environments & package caches
+.venv/
+node_modules/
+pip_cache/
+.cache/
+
+# Large model weights and HuggingFace cache
+models/weights/
+models/checkpoints/
+*.safetensors
+*.pt
+*.bin
+
+# Datasets, local outputs, tests, notebooks
+data/
+outputs/
+notebooks/
+scripts/
+tests/
+*.npy
+*.tif
+*.tiff
+*.h5
+*.hdf5
+
+# Build and IDE artifacts
+build/
+dist/
+*.egg-info/
+__pycache__/
+*.pyc
+.git/
+.github/
+.vscode/
+.idea/

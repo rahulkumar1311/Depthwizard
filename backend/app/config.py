@@ -17,9 +17,12 @@ DEPTH_OUTPUTS = OUTPUTS_DIR / "depth"
 DSM_OUTPUTS = OUTPUTS_DIR / "dsm"
 MESH_OUTPUTS = OUTPUTS_DIR / "meshes"
 
-# Ensure output directories exist
+# Ensure output directories exist (safely ignored on read-only serverless filesystems)
 for p in [DEPTH_OUTPUTS, DSM_OUTPUTS, MESH_OUTPUTS, WEIGHTS_DIR, GAMUS_DIR, SAMPLE_DIR, REFERENCE_DIR]:
-    p.mkdir(parents=True, exist_ok=True)
+    try:
+        p.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass
 
 # Hardware Detection
 def detect_device() -> str:

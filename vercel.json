@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "functions": {
+    "backend/app/main.py": {
+      "maxDuration": 60,
+      "excludeFiles": "{data/**,models/**,outputs/**,notebooks/**,scripts/**,pip_cache/**,frontend/**}"
+    }
+  }
+}

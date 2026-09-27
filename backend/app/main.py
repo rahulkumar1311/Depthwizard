@@ -32,9 +32,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount outputs and data directories as static files
-app.mount("/static/outputs", StaticFiles(directory=settings.OUTPUTS_DIR), name="outputs")
-app.mount("/static/data", StaticFiles(directory=settings.DATA_DIR), name="data")
+# Mount outputs and data directories as static files (if directories exist)
+if settings.OUTPUTS_DIR.exists():
+    app.mount("/static/outputs", StaticFiles(directory=settings.OUTPUTS_DIR), name="outputs")
+if settings.DATA_DIR.exists():
+    app.mount("/static/data", StaticFiles(directory=settings.DATA_DIR), name="data")
 
 
 # Include API routes
