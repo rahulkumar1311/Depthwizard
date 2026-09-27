@@ -76,6 +76,15 @@ export default function AccuracyEvaluationSection({ API_BASE = '' }) {
   const afterCorr = isDataset ? evalData?.after?.mean_correlation : primarySample?.after?.correlation;
   const corrChange = isDataset ? evalData?.improvement?.correlation_change : primarySample?.improvement?.correlation_change;
 
+  // Safe numerical formatter
+  const fmt = (val, digits = 2, showPlus = false) => {
+    if (typeof val === 'number' && !isNaN(val)) {
+      const prefix = showPlus && val > 0 ? '+' : '';
+      return `${prefix}${val.toFixed(digits)}`;
+    }
+    return '--';
+  };
+
   return (
     <section className="accuracy-evaluation-section" id="accuracy-section">
       {/* Header Bar */}
@@ -145,7 +154,7 @@ export default function AccuracyEvaluationSection({ API_BASE = '' }) {
             <div className="metric-column before">
               <span className="comp-label">BEFORE (Baseline DA3)</span>
               <div className="comp-value-row">
-                <strong className="comp-number">{beforeRMSE !== undefined ? `${beforeRMSE.toFixed(2)}` : '--'}</strong>
+                <strong className="comp-number">{fmt(beforeRMSE, 2)}</strong>
                 <span className="comp-unit">m</span>
               </div>
               <span className="comp-subtext">Pretrained relative depth</span>
@@ -156,7 +165,7 @@ export default function AccuracyEvaluationSection({ API_BASE = '' }) {
             <div className="metric-column after">
               <span className="comp-label">AFTER (DepthWizard)</span>
               <div className="comp-value-row">
-                <strong className="comp-number text-emerald">{afterRMSE !== undefined ? `${afterRMSE.toFixed(2)}` : '--'}</strong>
+                <strong className="comp-number text-emerald">{fmt(afterRMSE, 2)}</strong>
                 <span className="comp-unit">m</span>
               </div>
               <span className="comp-subtext">Metric calibrated DSM</span>
@@ -166,7 +175,7 @@ export default function AccuracyEvaluationSection({ API_BASE = '' }) {
           <div className="metric-delta-footer positive">
             <TrendingDown size={16} />
             <span className="delta-text">
-              <strong>{rmseImp !== undefined ? `${rmseImp.toFixed(1)}%` : '--%'}</strong> Error Reduction
+              <strong>{typeof rmseImp === 'number' ? `${rmseImp.toFixed(1)}%` : '--%'}</strong> Error Reduction
             </span>
           </div>
         </div>
@@ -182,7 +191,7 @@ export default function AccuracyEvaluationSection({ API_BASE = '' }) {
             <div className="metric-column before">
               <span className="comp-label">BEFORE (Baseline DA3)</span>
               <div className="comp-value-row">
-                <strong className="comp-number">{beforeMAE !== undefined ? `${beforeMAE.toFixed(2)}` : '--'}</strong>
+                <strong className="comp-number">{fmt(beforeMAE, 2)}</strong>
                 <span className="comp-unit">m</span>
               </div>
               <span className="comp-subtext">Pretrained relative depth</span>
@@ -193,7 +202,7 @@ export default function AccuracyEvaluationSection({ API_BASE = '' }) {
             <div className="metric-column after">
               <span className="comp-label">AFTER (DepthWizard)</span>
               <div className="comp-value-row">
-                <strong className="comp-number text-emerald">{afterMAE !== undefined ? `${afterMAE.toFixed(2)}` : '--'}</strong>
+                <strong className="comp-number text-emerald">{fmt(afterMAE, 2)}</strong>
                 <span className="comp-unit">m</span>
               </div>
               <span className="comp-subtext">Metric calibrated DSM</span>
@@ -203,7 +212,7 @@ export default function AccuracyEvaluationSection({ API_BASE = '' }) {
           <div className="metric-delta-footer positive">
             <TrendingDown size={16} />
             <span className="delta-text">
-              <strong>{maeImp !== undefined ? `${maeImp.toFixed(1)}%` : '--%'}</strong> Error Reduction
+              <strong>{typeof maeImp === 'number' ? `${maeImp.toFixed(1)}%` : '--%'}</strong> Error Reduction
             </span>
           </div>
         </div>
@@ -219,7 +228,7 @@ export default function AccuracyEvaluationSection({ API_BASE = '' }) {
             <div className="metric-column before">
               <span className="comp-label">BEFORE (Baseline DA3)</span>
               <div className="comp-value-row">
-                <strong className="comp-number">{beforeCorr !== undefined ? `${beforeCorr > 0 ? '+' : ''}${beforeCorr.toFixed(2)}` : '--'}</strong>
+                <strong className="comp-number">{fmt(beforeCorr, 2, true)}</strong>
               </div>
               <span className="comp-subtext">Raw inverse disparity</span>
             </div>
@@ -229,7 +238,7 @@ export default function AccuracyEvaluationSection({ API_BASE = '' }) {
             <div className="metric-column after">
               <span className="comp-label">AFTER (DepthWizard)</span>
               <div className="comp-value-row">
-                <strong className="comp-number text-emerald">{afterCorr !== undefined ? `+${afterCorr.toFixed(2)}` : '--'}</strong>
+                <strong className="comp-number text-emerald">{fmt(afterCorr, 2, true)}</strong>
               </div>
               <span className="comp-subtext">True elevation gradient</span>
             </div>
@@ -238,7 +247,7 @@ export default function AccuracyEvaluationSection({ API_BASE = '' }) {
           <div className="metric-delta-footer positive">
             <TrendingUp size={16} />
             <span className="delta-text">
-              <strong>{corrChange !== undefined ? `${corrChange > 0 ? '+' : ''}${corrChange.toFixed(3)}` : '--'}</strong> Positive Alignment
+              <strong>{fmt(corrChange, 3, true)}</strong> Positive Alignment
             </span>
           </div>
         </div>
