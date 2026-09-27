@@ -1,0 +1,15 @@
+DepthWizard Accuracy Evaluation Report
+
+Condition,Model / Pipeline,RMSE (m),MAE (m),Pearson Correlation (r)
+Before (Baseline),Baseline — Pretrained Depth Anything 3,17.837,15.5399,-0.3789
+After (DepthWizard),After — Calibrated DepthWizard,9.6544,7.9374,0.3799
+
+Metric,Improvement,Direction
+RMSE Reduction,45.87%,Lower is better (↓)
+MAE Reduction,48.92%,Lower is better (↓)
+Correlation Change,+0.7588,Higher is better (↑)
+
+Sample Breakdown
+Sample ID,Baseline RMSE,After RMSE,RMSE Imp %,Baseline MAE,After MAE,MAE Imp %
+DC_02_26,18.3384,9.0591,50.6%,16.0325,7.2943,54.5%
+DC_04_23,17.3357,10.2497,40.88%,15.0474,8.5805,42.98%

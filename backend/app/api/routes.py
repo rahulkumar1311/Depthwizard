@@ -204,37 +204,51 @@ async def generate_metric_dsm(
 @router.get("/terrain/mesh")
 def get_terrain_mesh(resolution: int = Query(default=128, description="Mesh grid resolution")):
     """Returns the latest metric DSM elevation grid and RGB texture mapping for 3D WebGL rendering."""
+    # 1. Try real generated DSM from outputs
     dsm_path = settings.OUTPUTS_DIR / "dsm" / "dsm.tif"
     if not dsm_path.exists():
         dsm_path = settings.OUTPUTS_DIR / "dsm" / "sample_gamus_optical_metric_dsm.tif"
 
-    if not dsm_path.exists():
-        raise HTTPException(status_code=404, detail="No DSM generated yet. Please run POST /api/dsm first.")
+    if dsm_path.exists():
+        try:
+            import rasterio
+            with rasterio.open(dsm_path) as src:
+                dsm_arr = src.read(1).astype(float)
+                nodata = src.nodata or -9999.0
 
-    import rasterio
-    with rasterio.open(dsm_path) as src:
-        dsm_arr = src.read(1).astype(float)
-        nodata = src.nodata or -9999.0
+            dsm_arr[dsm_arr == nodata] = 0.0
+            import numpy as np
+            dsm_arr = np.nan_to_num(dsm_arr, nan=0.0, posinf=0.0, neginf=0.0)
 
-    dsm_arr[dsm_arr == nodata] = 0.0
-    import numpy as np
-    dsm_arr = np.nan_to_num(dsm_arr, nan=0.0, posinf=0.0, neginf=0.0)
+            heightfield = mesh_service.generate_heightfield(dsm_arr, target_resolution=resolution)
 
-    heightfield = mesh_service.generate_heightfield(dsm_arr, target_resolution=resolution)
+            return {
+                "status": "success",
+                "dsm_source": dsm_path.name,
+                "rows": heightfield["rows"],
+                "cols": heightfield["cols"],
+                "min_height": heightfield["min_height"],
+                "max_height": heightfield["max_height"],
+                "mean_height": heightfield["mean_height"],
+                "heights": heightfield["heights"],
+                "texture_url": "/static/data/sample/sample_gamus_optical.png",
+                "dsm_vis_url": "/static/outputs/dsm/dsm_vis.png",
+                "gsd_m": 0.5,
+            }
+        except Exception as e:
+            logger.warning(f"Could not read DSM from rasterio: {e}, using bundled fallback")
 
-    return {
-        "status": "success",
-        "dsm_source": dsm_path.name,
-        "rows": heightfield["rows"],
-        "cols": heightfield["cols"],
-        "min_height": heightfield["min_height"],
-        "max_height": heightfield["max_height"],
-        "mean_height": heightfield["mean_height"],
-        "heights": heightfield["heights"],
-        "texture_url": "http://localhost:8000/static/data/sample/sample_gamus_optical.png",
-        "dsm_vis_url": "http://localhost:8000/static/outputs/dsm/dsm_vis.png",
-        "gsd_m": 0.5,
-    }
+    # 2. Resilient Fallback: Bundled pre-computed 128x128 GAMUS terrain mesh (ensures Vercel / serverless 100% availability)
+    bundled_mesh_file = Path(__file__).resolve().parent.parent / "services" / "default_terrain_mesh.json"
+    if bundled_mesh_file.exists():
+        import json
+        with open(bundled_mesh_file, mode="r", encoding="utf-8") as f:
+            mesh_data = json.load(f)
+            mesh_data["texture_url"] = "/static/data/sample/sample_gamus_optical.png"
+            mesh_data["dsm_vis_url"] = "/static/outputs/dsm/dsm_vis.png"
+            return mesh_data
+
+    raise HTTPException(status_code=404, detail="No DSM generated yet. Please run POST /api/dsm first.")
 
 
 @router.post("/pipeline/run")
