@@ -1,10 +1,33 @@
 {
   "version": 2,
   "functions": {
+    "api/index.py": {
+      "maxDuration": 60,
+      "includeFiles": "{backend/**,frontend/dist/**}",
+      "excludeFiles": "{data/**,models/checkpoints/**,models/weights/**,pip_cache/**,frontend/node_modules/**}"
+    },
     "backend/app/main.py": {
       "maxDuration": 60,
-      "includeFiles": "backend/app/services/**",
-      "excludeFiles": "{data/**,models/**,outputs/**,notebooks/**,scripts/**,pip_cache/**,frontend/node_modules/**}"
+      "includeFiles": "{backend/**,frontend/dist/**}",
+      "excludeFiles": "{data/**,models/checkpoints/**,models/weights/**,pip_cache/**,frontend/node_modules/**}"
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/static/(.*)",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/assets/(.*)",
+      "destination": "/frontend/dist/assets/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/api/index.py"
+    }
+  ]
 }

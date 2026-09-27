@@ -1,0 +1,9 @@
+# DepthWizard Full Local AI / GPU Requirements
+# For workstation deep learning with PyTorch, CUDA, and GeoTIFF raster I/O:
+# pip install -r requirements-gpu.txt
+
+-r requirements.txt
+torch>=2.2.0
+torchvision>=0.17.0
+huggingface_hub>=0.21.0
+rasterio>=1.3.0

@@ -29,9 +29,11 @@ def batch_apply_alignment_to_enc(
 def batch_apply_alignment_to_ext(
     rots: torch.Tensor, trans: torch.Tensor, scales: torch.Tensor, ext: torch.Tensor
 ):
-    device, _ = ext.device, ext.dtype
+    if ext is None:
+        return None
+    device, dtype = getattr(ext, "device", "cpu"), getattr(ext, "dtype", torch.float32)
     if ext.shape[-2:] == (3, 4):
-        pad = torch.zeros((*ext.shape[:-2], 4, 4), dtype=ext.dtype, device=device)
+        pad = torch.zeros((*ext.shape[:-2], 4, 4), dtype=dtype, device=device)
         pad[..., :3, :4] = ext
         pad[..., 3, 3] = 1.0
         ext = pad
@@ -48,7 +50,9 @@ def batch_apply_alignment_to_ext(
 
 
 def batch_align_poses_umeyama(ext_ref: torch.Tensor, ext_est: torch.Tensor):
-    device, dtype = ext_ref.device, ext_ref.dtype
+    if ext_ref is None or ext_est is None:
+        return [], [], []
+    device, dtype = getattr(ext_ref, "device", "cpu"), getattr(ext_ref, "dtype", torch.float32)
     assert ext_ref.dtype in [torch.float32, torch.float64]
     assert ext_est.dtype in [torch.float32, torch.float64]
     assert ext_ref.requires_grad is False
