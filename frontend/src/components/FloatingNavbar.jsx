@@ -67,43 +67,48 @@ export default function FloatingNavbar({
           </div>
         </div>
 
-        {/* Center Nav Links */}
-        <nav className="nav-center-links">
-          {navItems.map((item) => (
+        {/* Center: Navigation Links and Centered Action Button */}
+        <div className="nav-center-container">
+          <nav className="nav-center-links">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                className={`nav-link-btn ${activeNav === item.id ? 'active' : ''}`}
+                onClick={() => handleNavClick(item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </nav>
+
+          {/* Centered Quick Demo / Processing Button */}
+          <div className="nav-center-action-wrapper">
             <button
-              key={item.id}
-              className={`nav-link-btn ${activeNav === item.id ? 'active' : ''}`}
-              onClick={() => handleNavClick(item.id)}
+              className="nav-demo-pill-btn centered"
+              onClick={onRunDemo}
+              disabled={isRunning}
+              title="Execute End-to-End DA3 Pipeline with Sample Optical Imagery"
+              aria-label="Run Live Demo"
             >
-              {item.label}
+              {isRunning ? (
+                <>
+                  <span className="nav-spinner" />
+                  <span className="nav-demo-text">Processing...</span>
+                  <span className="nav-demo-text-short">Processing...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={13} className="text-blue-500" />
+                  <span className="nav-demo-text">Live Demo</span>
+                  <span className="nav-demo-text-short">Demo</span>
+                </>
+              )}
             </button>
-          ))}
-        </nav>
+          </div>
+        </div>
 
-        {/* Right Action Buttons */}
+        {/* Right Action Icons (Corner) */}
         <div className="nav-actions-group">
-          {/* Quick Demo Button */}
-          <button
-            className="nav-demo-pill-btn"
-            onClick={onRunDemo}
-            disabled={isRunning}
-            title="Execute End-to-End DA3 Pipeline with Sample Optical Imagery"
-            aria-label="Run Live Demo"
-          >
-            {isRunning ? (
-              <>
-                <span className="nav-spinner" />
-                <span className="nav-demo-text">Processing...</span>
-              </>
-            ) : (
-              <>
-                <Sparkles size={13} className="text-blue-500" />
-                <span className="nav-demo-text">Live Demo</span>
-                <span className="nav-demo-text-short">Demo</span>
-              </>
-            )}
-          </button>
-
           {/* Settings / Diagnostics */}
           <button
             className="nav-icon-btn"
