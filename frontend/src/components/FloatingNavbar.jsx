@@ -26,6 +26,7 @@ export default function FloatingNavbar({
     { id: 'da3', label: 'DA3 Engine' },
     { id: 'terrain', label: '3D Flythrough' },
     { id: 'dsm-analysis', label: 'DSM & GeoTIFF' },
+    { id: 'accuracy', label: 'Accuracy' },
     { id: 'measurements', label: 'Terrain Analysis' },
     { id: 'gamus', label: 'GAMUS Data' },
   ];

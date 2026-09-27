@@ -7,6 +7,7 @@ import ImageProcessingCard from './components/ImageProcessingCard';
 import TerrainSection from './components/TerrainSection';
 import TerrainAnalysisPanel from './components/TerrainAnalysisPanel';
 import DsmAnalysisSection from './components/DsmAnalysisSection';
+import AccuracyEvaluationSection from './components/AccuracyEvaluationSection';
 import SettingsModal from './components/SettingsModal';
 import { Cpu, Zap, Compass, CheckCircle2, ShieldCheck, Database, Layers } from 'lucide-react';
 
@@ -162,7 +163,8 @@ export default function App() {
       terrain: 'terrain-section',
       measurements: 'terrain-section',
       'dsm-analysis': 'dsm-analysis-section',
-      gamus: 'dsm-analysis-section',
+      accuracy: 'accuracy-section',
+      gamus: 'accuracy-section',
     };
 
     const targetId = sectionMap[id];
@@ -309,6 +311,11 @@ export default function App() {
             dsmMesh={dsmMesh}
             onExportDSM={handleExportDSM}
           />
+        </div>
+
+        {/* 8. ACCURACY IMPROVEMENT SECTION (Real Ground-Truth Benchmark) */}
+        <div className="workspace-section-container" id="accuracy-section">
+          <AccuracyEvaluationSection API_BASE={API_BASE} />
         </div>
 
         {/* 8. FOOTER */}

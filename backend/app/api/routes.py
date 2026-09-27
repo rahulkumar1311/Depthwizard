@@ -436,11 +436,91 @@ async def run_end_to_end_pipeline(
 @router.post("/analyze/profile")
 def analyze_elevation_profile(req: ProfileRequest):
     """Calculates height and slope profile along a transect between two points."""
-    # Placeholder profile computation demonstration
     return {
         "message": "Profile calculation endpoint ready.",
         "request": req.model_dump()
     }
+
+
+# ==============================================================================
+# Accuracy Evaluation Endpoints (ISRO SIH 2026 Problem Statement 26175)
+# ==============================================================================
+
+@router.get("/evaluate/summary")
+def get_evaluation_summary():
+    """Returns the latest benchmark evaluation results comparing Pretrained DA3 vs DepthWizard."""
+    report_path = settings.OUTPUTS_DIR / "evaluation" / "accuracy_report.json"
+    if not report_path.exists():
+        # Run evaluator on the real validation set
+        try:
+            from evaluation.evaluator import DepthWizardEvaluator
+            from evaluation.comparison import export_accuracy_reports, generate_comparison_figure
+            evaluator = DepthWizardEvaluator(device=settings.DEVICE)
+            manifest_p = settings.BASE_DIR / "data" / "GAMUS_mvp" / "manifest.csv"
+            res = evaluator.evaluate_dataset(manifest_p, split="val")
+            export_accuracy_reports(res, output_dir=settings.OUTPUTS_DIR / "evaluation")
+            # Generate sample visual comparison
+            rgb_p = settings.BASE_DIR / "data" / "GAMUS_mvp" / "val" / "DC_02_26_RGB.h5"
+            ref_p = settings.BASE_DIR / "data" / "GAMUS_mvp" / "val" / "DC_02_26_AGL.h5"
+            s_res = evaluator.evaluate_sample(rgb_p, ref_p, sample_name="DC_02_26")
+            rgb_arr = evaluator.load_rgb(rgb_p)
+            generate_comparison_figure(s_res, rgb_arr, output_dir=settings.OUTPUTS_DIR / "evaluation")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to generate evaluation report: {e}")
+
+    with open(report_path, mode="r", encoding="utf-8") as f:
+        import json
+        data = json.load(f)
+
+    # Attach static URLs
+    data["artifacts"] = {
+        "comparison_image_url": "/static/outputs/evaluation/comparison.png",
+        "report_json_url": "/static/outputs/evaluation/accuracy_report.json",
+        "report_csv_url": "/static/outputs/evaluation/accuracy_report.csv",
+    }
+    return data
+
+
+@router.post("/evaluate")
+async def evaluate_accuracy(
+    rgb_file: Optional[UploadFile] = File(None),
+    reference_file: Optional[UploadFile] = File(None),
+    sample_name: Optional[str] = Query("validation_sample"),
+):
+    """Evaluates Baseline (Pretrained DA3) vs After (DepthWizard Calibrated) against reference elevation."""
+    from evaluation.evaluator import DepthWizardEvaluator
+    evaluator = DepthWizardEvaluator(device=settings.DEVICE)
+
+    # If files are uploaded, use them; otherwise use held-out GAMUS validation pair DC_02_26
+    if rgb_file is not None and reference_file is not None:
+        rgb_bytes = await rgb_file.read()
+        ref_bytes = await reference_file.read()
+        import io
+        from PIL import Image
+        rgb_src = Image.open(io.BytesIO(rgb_bytes)).convert("RGB")
+        # Reference can be .npy, .h5, or geotiff image
+        ref_src = ref_bytes
+        s_name = sample_name or Path(rgb_file.filename).stem
+    else:
+        # Default to real held-out validation sample
+        rgb_src = settings.BASE_DIR / "data" / "GAMUS_mvp" / "val" / "DC_02_26_RGB.h5"
+        ref_src = settings.BASE_DIR / "data" / "GAMUS_mvp" / "val" / "DC_02_26_AGL.h5"
+        s_name = "DC_02_26"
+
+    try:
+        eval_res = evaluator.evaluate_sample(rgb_src, ref_src, sample_name=s_name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Accuracy evaluation failed: {e}")
+
+    # Strip heavy arrays for API response
+    clean_response = {k: v for k, v in eval_res.items() if k != "predictions"}
+    clean_response["artifacts"] = {
+        "comparison_image_url": "/static/outputs/evaluation/comparison.png",
+        "report_json_url": "/static/outputs/evaluation/accuracy_report.json",
+        "report_csv_url": "/static/outputs/evaluation/accuracy_report.csv",
+    }
+    return clean_response
+
 
 
 
