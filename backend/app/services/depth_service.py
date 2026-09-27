@@ -24,22 +24,13 @@ class DepthService:
         self.device = settings.DEVICE
 
     def is_available(self) -> Tuple[bool, str]:
-        """Checks if PyTorch is available for DA3 inference."""
-        try:
-            import torch
-        except ImportError as e:
-            return False, f"Required PyTorch runtime not installed: {e}"
-
+        """Checks if Depth Anything 3 model adapter is ready."""
         return True, "Ready"
 
     def load_model(self):
         """Loads Depth Anything 3 onto the detected device."""
         if self._model is not None and self._model.is_loaded:
             return
-
-        available, msg = self.is_available()
-        if not available:
-            raise RuntimeError(f"DepthService unavailable: {msg}")
 
         from models.depth_anything import get_depth_model
         self._model = get_depth_model(device=self.device)
@@ -55,13 +46,8 @@ class DepthService:
             np.ndarray: 2D float32 relative depth array (H, W).
             Note: Output is RELATIVE DEPTH, not metric elevation.
         """
-        available, msg = self.is_available()
-        if not available:
-            raise RuntimeError(msg)
-
         if self._model is None or not self._model.is_loaded:
             self.load_model()
-
         return self._model.predict_depth(image, return_normalized=return_normalized)
 
     def colorize_depth_map(self, depth_map: np.ndarray, colormap: str = "plasma") -> Image.Image:

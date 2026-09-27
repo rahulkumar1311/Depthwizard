@@ -2,10 +2,13 @@
 
 import os
 import sys
+import logging
 from pathlib import Path
 from typing import List, Optional
 from fastapi import APIRouter, File, UploadFile, HTTPException, Query
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 
 from app.config import settings, GAMUS_DIR, WEIGHTS_DIR
@@ -196,7 +199,8 @@ async def generate_metric_dsm(
             gsd_m=gsd_m,
             colormap=colormap,
         )
-        return result
+        res_clean = {k: v for k, v in result.items() if k != "metric_elevation"}
+        return res_clean
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DSM generation failed: {str(e)}")
 
@@ -236,19 +240,56 @@ def get_terrain_mesh(resolution: int = Query(default=128, description="Mesh grid
                 "gsd_m": 0.5,
             }
         except Exception as e:
-            logger.warning(f"Could not read DSM from rasterio: {e}, using bundled fallback")
+            logger.warning(f"Could not read DSM from rasterio: {e}")
 
-    # 2. Resilient Fallback: Bundled pre-computed 128x128 GAMUS terrain mesh (ensures Vercel / serverless 100% availability)
-    bundled_mesh_file = Path(__file__).resolve().parent.parent / "services" / "default_terrain_mesh.json"
-    if bundled_mesh_file.exists():
-        import json
-        with open(bundled_mesh_file, mode="r", encoding="utf-8") as f:
-            mesh_data = json.load(f)
+    # Check numpy array saved during pipeline run
+    active_npy = settings.OUTPUTS_DIR / "dsm" / "pipeline_active_metric_elevation.npy"
+    if active_npy.exists():
+        try:
+            import numpy as np
+            dsm_arr = np.load(active_npy)
+            heightfield = mesh_service.generate_heightfield(dsm_arr, target_resolution=resolution)
+            return {
+                "status": "success",
+                "dsm_source": "pipeline_active_metric_elevation.npy",
+                "rows": heightfield["rows"],
+                "cols": heightfield["cols"],
+                "min_height": heightfield["min_height"],
+                "max_height": heightfield["max_height"],
+                "mean_height": heightfield["mean_height"],
+                "heights": heightfield["heights"],
+                "texture_url": "/static/outputs/depth/active_texture.png",
+                "dsm_vis_url": "/static/outputs/dsm/dsm_vis.png",
+                "gsd_m": 0.5,
+            }
+        except Exception as e:
+            logger.warning(f"Could not read active npy: {e}")
+
+    # 2. Bundled pre-computed 128x128 GAMUS baseline terrain mesh (ensures Vercel / serverless 100% availability)
+    try:
+        from app.services.bundled_data import get_bundled_terrain_mesh
+        mesh_data = get_bundled_terrain_mesh()
+        if mesh_data:
             mesh_data["texture_url"] = "/static/data/sample/sample_gamus_optical.png"
             mesh_data["dsm_vis_url"] = "/static/outputs/dsm/dsm_vis.png"
             return mesh_data
+    except Exception as e:
+        logger.warning(f"Could not load bundled mesh: {e}")
 
-    raise HTTPException(status_code=404, detail="No DSM generated yet. Please run POST /api/dsm first.")
+    # 3. File-based fallback
+    bundled_mesh_file = Path(__file__).resolve().parent.parent / "services" / "default_terrain_mesh.json"
+    if bundled_mesh_file.exists():
+        try:
+            import json
+            with open(bundled_mesh_file, mode="r", encoding="utf-8") as f:
+                mesh_data = json.load(f)
+                mesh_data["texture_url"] = "/static/data/sample/sample_gamus_optical.png"
+                mesh_data["dsm_vis_url"] = "/static/outputs/dsm/dsm_vis.png"
+                return mesh_data
+        except Exception:
+            pass
+
+    raise HTTPException(status_code=404, detail="No DSM generated yet. Please run POST /api/pipeline/run first.")
 
 
 @router.post("/pipeline/run")
@@ -524,48 +565,47 @@ def analyze_elevation_profile(req: ProfileRequest):
 @router.get("/evaluate/summary")
 def get_evaluation_summary():
     """Returns the latest benchmark evaluation results comparing Pretrained DA3 vs DepthWizard."""
+    # 1. Try reading generated evaluation report
     report_candidates = [
         settings.OUTPUTS_DIR / "evaluation" / "accuracy_report.json",
         Path(__file__).resolve().parent.parent / "services" / "accuracy_report.json",
         settings.BASE_DIR / "frontend" / "public" / "static" / "outputs" / "evaluation" / "accuracy_report.json",
     ]
-    report_path = None
     for p in report_candidates:
         if p.exists():
-            report_path = p
-            break
-
-    if report_path is None:
-        manifest_p = settings.BASE_DIR / "data" / "GAMUS_mvp" / "manifest.csv"
-        if manifest_p.exists():
             try:
-                from evaluation.evaluator import DepthWizardEvaluator
-                from evaluation.comparison import export_accuracy_reports, generate_comparison_figure
-                evaluator = DepthWizardEvaluator(device=settings.DEVICE)
-                res = evaluator.evaluate_dataset(manifest_p, split="val")
-                export_accuracy_reports(res, output_dir=settings.OUTPUTS_DIR / "evaluation")
-                rgb_p = settings.BASE_DIR / "data" / "GAMUS_mvp" / "val" / "DC_02_26_RGB.h5"
-                ref_p = settings.BASE_DIR / "data" / "GAMUS_mvp" / "val" / "DC_02_26_AGL.h5"
-                s_res = evaluator.evaluate_sample(rgb_p, ref_p, sample_name="DC_02_26")
-                rgb_arr = evaluator.load_rgb(rgb_p)
-                generate_comparison_figure(s_res, rgb_arr, output_dir=settings.OUTPUTS_DIR / "evaluation")
-                report_path = settings.OUTPUTS_DIR / "evaluation" / "accuracy_report.json"
+                import json
+                with open(p, mode="r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    data["artifacts"] = {
+                        "comparison_image_url": "/static/outputs/evaluation/comparison.png",
+                        "report_json_url": "/static/outputs/evaluation/accuracy_report.json",
+                        "report_csv_url": "/static/outputs/evaluation/accuracy_report.csv",
+                    }
+                    return data
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to generate evaluation report: {e}")
-        else:
-            raise HTTPException(status_code=404, detail="Evaluation dataset unavailable in deployment environment.")
+                logger.warning(f"Failed to read report from {p}: {e}")
 
-    with open(report_path, mode="r", encoding="utf-8") as f:
-        import json
-        data = json.load(f)
+    # 2. Bundled pre-computed GAMUS benchmark report (ensures Vercel / serverless availability)
+    try:
+        from app.services.bundled_data import get_bundled_accuracy_report
+        data = get_bundled_accuracy_report()
+        if data:
+            data["artifacts"] = {
+                "comparison_image_url": "/static/outputs/evaluation/comparison.png",
+                "report_json_url": "/static/outputs/evaluation/accuracy_report.json",
+                "report_csv_url": "/static/outputs/evaluation/accuracy_report.csv",
+            }
+            return data
+    except Exception as e:
+        logger.warning(f"Failed to load bundled report: {e}")
 
-    # Attach static URLs
-    data["artifacts"] = {
-        "comparison_image_url": "/static/outputs/evaluation/comparison.png",
-        "report_json_url": "/static/outputs/evaluation/accuracy_report.json",
-        "report_csv_url": "/static/outputs/evaluation/accuracy_report.csv",
+    # 3. Clean fallback if unavailable (avoids 500 error on serverless)
+    return {
+        "status": "unavailable",
+        "reason": "Evaluation dataset/report is not available in production environment.",
+        "dataset": "GAMUS (Global Aerial Multi-View Urban Surface)",
     }
-    return data
 
 
 @router.post("/evaluate")
