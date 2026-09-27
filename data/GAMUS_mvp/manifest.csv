@@ -1,0 +1,7 @@
+split,sample_id,rgb_path,reference_depth_path,image_dimensions,reference_dimensions,image_dtype,reference_dtype,min_elevation_m,max_elevation_m,resolution_gsd,rgb_size_bytes,reference_size_bytes,source_repo
+train,DC_01_25,data/GAMUS_mvp/train/DC_01_25_RGB.h5,data/GAMUS_mvp/train/DC_01_25_AGL.h5,"(1024, 1024, 3)","(1024, 1024)",uint8,float32,0.0,44.513,0.5m/pixel,3147776,4196352,earthflow/GAMUS
+train,DC_02_24,data/GAMUS_mvp/train/DC_02_24_RGB.h5,data/GAMUS_mvp/train/DC_02_24_AGL.h5,"(1024, 1024, 3)","(1024, 1024)",uint8,float32,-5.0,44.086,0.5m/pixel,3147776,4196352,earthflow/GAMUS
+train,DC_02_25,data/GAMUS_mvp/train/DC_02_25_RGB.h5,data/GAMUS_mvp/train/DC_02_25_AGL.h5,"(1024, 1024, 3)","(1024, 1024)",uint8,float32,0.0,37.034,0.5m/pixel,3147776,4196352,earthflow/GAMUS
+train,DC_02_27,data/GAMUS_mvp/train/DC_02_27_RGB.h5,data/GAMUS_mvp/train/DC_02_27_AGL.h5,"(1024, 1024, 3)","(1024, 1024)",uint8,float32,0.0,51.157,0.5m/pixel,3147776,4196352,earthflow/GAMUS
+val,DC_02_26,data/GAMUS_mvp/val/DC_02_26_RGB.h5,data/GAMUS_mvp/val/DC_02_26_AGL.h5,"(1024, 1024, 3)","(1024, 1024)",uint8,float32,0.0,41.517,0.5m/pixel,3147776,4196352,earthflow/GAMUS
+val,DC_04_23,data/GAMUS_mvp/val/DC_04_23_RGB.h5,data/GAMUS_mvp/val/DC_04_23_AGL.h5,"(1024, 1024, 3)","(1024, 1024)",uint8,float32,-5.0,45.026,0.5m/pixel,3147776,4196352,earthflow/GAMUS

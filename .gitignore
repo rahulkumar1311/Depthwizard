@@ -1,0 +1,45 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+*.so
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python & Node Caches
+pip_cache/
+.cache/
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Large Model Checkpoints & Pretrained Weights (>100MB)
+# (Downloaded on-demand via HuggingFace Hub / scripts)
+models/checkpoints/*.pt
+models/weights/da3_small/*.safetensors
+models/weights/hf_cache/
+models/weights/.hf_home/
+
+# Generated Pipeline Outputs (keep directory structure)
+outputs/depth/*.npy
+outputs/depth/*.png
+outputs/dsm/*.tif
+outputs/dsm/*.png
+outputs/meshes/*.glb
+outputs/meshes/*.obj
+outputs/meshes/*.ply
+!outputs/**/.gitkeep
+!models/checkpoints/.gitkeep
+!models/weights/**/.gitkeep
+
+# System & IDE files
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/

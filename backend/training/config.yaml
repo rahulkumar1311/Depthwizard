@@ -1,0 +1,23 @@
+# DepthWizard Remote-Sensing Domain Adaptation Configuration
+# ISRO SIH 2026 Problem Statement 26175 (DepthWizard)
+
+model:
+  model_id: "depth-anything/Depth-Anything-V2-Small-hf"
+  pretrained_cache_dir: "models/weights/hf_cache"
+  freeze_backbone: false
+
+dataset:
+  root_dir: "data/GAMUS_mvp"
+  target_size: [518, 518] # Depth Anything V2 native input resolution
+  clamp_negative_elevations: true
+  max_elevation_cap: 200.0
+
+training:
+  epochs: 1
+  batch_size: 2
+  learning_rate: 1.0e-5
+  weight_decay: 0.01
+  alpha_grad: 0.5
+  device: "auto" # 'cuda', 'cpu', or 'auto'
+  save_dir: "models/checkpoints"
+  val_interval: 1
