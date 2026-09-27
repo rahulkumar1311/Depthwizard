@@ -17,6 +17,9 @@ pip_cache/
 node_modules/
 frontend/dist/
 frontend/.vite/
+build/
+dist/
+*.egg-info/
 
 # Large Model Checkpoints & Pretrained Weights (>100MB)
 # (Downloaded on-demand via HuggingFace Hub / scripts)
