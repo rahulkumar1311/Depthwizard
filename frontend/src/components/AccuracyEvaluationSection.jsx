@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import defaultAccuracyReport from '../data/default_accuracy_report.json';
+import comparisonImg from '../assets/comparison.png';
 import {
   Award,
   CheckCircle2,
@@ -18,7 +20,7 @@ import {
 } from 'lucide-react';
 
 export default function AccuracyEvaluationSection({ API_BASE = '' }) {
-  const [evalData, setEvalData] = useState(null);
+  const [evalData, setEvalData] = useState(defaultAccuracyReport);
   const [selectedMode, setSelectedMode] = useState('dataset'); // 'dataset' | 'sample'
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -26,15 +28,18 @@ export default function AccuracyEvaluationSection({ API_BASE = '' }) {
   // Fetch initial pre-calculated evaluation summary
   const fetchSummary = async () => {
     setIsLoading(true);
-    setError(null);
     try {
       const res = await fetch(`${API_BASE}/api/evaluate/summary`);
-      if (!res.ok) throw new Error('Could not fetch accuracy evaluation report');
-      const data = await res.json();
-      setEvalData(data);
+      if (res.ok) {
+        const data = await res.json();
+        setEvalData(data);
+        setError(null);
+      } else {
+        console.info('[DepthWizard] API summary endpoint not active, using bundled GAMUS benchmark.');
+      }
     } catch (err) {
-      console.warn('Evaluation summary fetch error:', err);
-      setError(err.message);
+      console.info('[DepthWizard] Backend offline/serverless, using bundled GAMUS benchmark:', err.message);
+      // Keep bundled evaluation report active without showing red error notice
     } finally {
       setIsLoading(false);
     }
@@ -59,6 +64,21 @@ export default function AccuracyEvaluationSection({ API_BASE = '' }) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Direct in-browser download of accuracy report JSON (works even without backend)
+  const handleDownloadReportJson = (e) => {
+    e.preventDefault();
+    const dataStr = JSON.stringify(evalData || defaultAccuracyReport, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'accuracy_report.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // Determine active view data
@@ -269,11 +289,13 @@ export default function AccuracyEvaluationSection({ API_BASE = '' }) {
         {/* Comparison Graphic Frame */}
         <div className="eval-image-figure-frame">
           <img
-            src={`${API_BASE}/static/outputs/evaluation/comparison.png?t=${Date.now()}`}
+            src={comparisonImg}
             alt="DepthWizard Accuracy Evaluation Comparison"
             className="eval-figure-display-img"
             onError={(e) => {
-              e.target.style.display = 'none';
+              if (e.target.src !== comparisonImg) {
+                e.target.src = comparisonImg;
+              }
             }}
           />
         </div>
@@ -376,15 +398,14 @@ export default function AccuracyEvaluationSection({ API_BASE = '' }) {
           </div>
 
           <div className="eval-prov-download-group">
-            <a
-              href={`${API_BASE}/static/outputs/evaluation/accuracy_report.json`}
-              target="_blank"
-              rel="noreferrer"
+            <button
+              onClick={handleDownloadReportJson}
               className="eval-download-pill-btn"
+              title="Download full JSON metrics report"
             >
               <Download size={13} />
               <span>accuracy_report.json</span>
-            </a>
+            </button>
             <a
               href={`${API_BASE}/static/outputs/evaluation/accuracy_report.csv`}
               target="_blank"

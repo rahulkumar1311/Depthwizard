@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import sampleOpticalImg from './assets/sample_gamus_optical.png';
+import defaultTerrainMesh from './data/default_terrain_mesh.json';
 import FloatingNavbar from './components/FloatingNavbar';
 import HeroOverview from './components/HeroOverview';
 import AnalyticsCards from './components/AnalyticsCards';
@@ -26,7 +28,7 @@ export default function App() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileName, setFileName] = useState('sample_gamus_optical.png');
   const [fileFormat, setFileFormat] = useState('PNG');
-  const [filePreviewUrl, setFilePreviewUrl] = useState(`${API_BASE}/static/data/sample/sample_gamus_optical.png`);
+  const [filePreviewUrl, setFilePreviewUrl] = useState(sampleOpticalImg);
 
   // Pipeline Execution State
   const [pipelineState, setPipelineState] = useState('idle'); // 'idle' | 'running' | 'completed' | 'error'
@@ -34,7 +36,7 @@ export default function App() {
   const [pipelineError, setPipelineError] = useState(null);
 
   // 3D Terrain & Viewer Settings
-  const [dsmMesh, setDsmMesh] = useState(null);
+  const [dsmMesh, setDsmMesh] = useState(defaultTerrainMesh);
   const [cameraMode, setCameraMode] = useState('orbit'); // 'orbit' | 'fly'
   const [textureMode, setTextureMode] = useState('rgb'); // 'rgb' | 'colormap' | 'slope' | 'wireframe'
   const [verticalExaggeration, setVerticalExaggeration] = useState(1.0);
@@ -51,17 +53,17 @@ export default function App() {
         console.warn('Backend currently connecting:', err);
       });
 
-    // Preload default mesh
+    // Try to load live dynamic mesh if backend available
     fetch(`${API_BASE}/api/terrain/mesh?resolution=128`)
       .then((res) => {
-        if (!res.ok) throw new Error('Could not load default mesh');
+        if (!res.ok) throw new Error('Live mesh endpoint unavailable');
         return res.json();
       })
       .then((meshData) => {
         setDsmMesh(meshData);
       })
       .catch((err) => {
-        console.log('Default mesh will be generated upon pipeline run:', err);
+        console.info('[DepthWizard] Using bundled pre-computed GAMUS terrain mesh.');
       });
   }, []);
 
@@ -88,7 +90,7 @@ export default function App() {
     setSelectedFile(null);
     setFileName('sample_gamus_optical.png');
     setFileFormat('PNG');
-    setFilePreviewUrl(`${API_BASE}/static/data/sample/sample_gamus_optical.png`);
+    setFilePreviewUrl(sampleOpticalImg);
   };
 
   // Run the end-to-end pipeline: RGB -> Depth (DA3) -> Calibration -> DSM -> 3D Terrain

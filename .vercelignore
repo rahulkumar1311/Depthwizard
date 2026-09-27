@@ -12,12 +12,12 @@ models/checkpoints/
 *.pt
 *.bin
 
-# Datasets, local outputs, tests, notebooks
-data/
-outputs/
-notebooks/
-scripts/
-tests/
+# Datasets, local outputs, tests, notebooks (root only)
+/data/
+/outputs/
+/notebooks/
+/scripts/
+/tests/
 *.npy
 *.tif
 *.tiff

@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import sampleOpticalImg from '../assets/sample_gamus_optical.png';
+import defaultTerrainMesh from '../data/default_terrain_mesh.json';
 import { createTerrainGeometry, createElevationColorTexture, createSlopeColorTexture } from './TerrainMesh';
 
 /**
@@ -30,11 +32,11 @@ export default function TerrainViewer({
   const mouseRef = useRef(new THREE.Vector2());
   const mouseDownPosRef = useRef({ x: 0, y: 0 });
 
-  // State
+  // State (pre-populated with bundled defaultTerrainMesh for 100% instant render)
   const [internalCameraMode, setInternalCameraMode] = useState('orbit');
   const [internalTextureMode, setInternalTextureMode] = useState(textureMode);
-  const [loadedMeshMeta, setLoadedMeshMeta] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loadedMeshMeta, setLoadedMeshMeta] = useState(dsmData || defaultTerrainMesh);
+  const [isLoading, setIsLoading] = useState(!dsmData && !defaultTerrainMesh);
 
   const effectiveCameraMode = cameraMode || internalCameraMode;
   const effectiveTextureMode = textureMode || internalTextureMode;
@@ -60,10 +62,9 @@ export default function TerrainViewer({
     }
 
     const API_BASE = import.meta.env.VITE_API_URL || '';
-    setIsLoading(true);
     fetch(`${API_BASE}/api/terrain/mesh?resolution=128`)
       .then((res) => {
-        if (!res.ok) throw new Error('DSM mesh endpoint error');
+        if (!res.ok) throw new Error('Live DSM mesh endpoint unavailable');
         return res.json();
       })
       .then((data) => {
@@ -71,25 +72,8 @@ export default function TerrainViewer({
         setIsLoading(false);
       })
       .catch((err) => {
-        console.warn('[DepthWizard] Using local metric DSM tile:', err);
-        const size = 128;
-        const heights = new Float32Array(size * size);
-        for (let r = 0; r < size; r++) {
-          for (let c = 0; c < size; c++) {
-            const isBuilding = (r % 24 < 14) && (c % 24 < 14);
-            const streetBase = 2.0 + Math.sin(r * 0.05) * 1.5;
-            heights[r * size + c] = isBuilding ? 8.5 + (r % 5) * 0.8 : streetBase;
-          }
-        }
-        setLoadedMeshMeta({
-          rows: size,
-          cols: size,
-          min_height: 0.0,
-          max_height: 12.84,
-          mean_height: 7.85,
-          heights: Array.from(heights),
-          texture_url: `${API_BASE}/static/data/sample/sample_gamus_optical.png`,
-        });
+        console.info('[DepthWizard] Using bundled pre-computed GAMUS terrain mesh:', err.message);
+        setLoadedMeshMeta(defaultTerrainMesh);
         setIsLoading(false);
       });
   }, [dsmData]);
@@ -132,18 +116,18 @@ export default function TerrainViewer({
     controls.maxDistance = 600;
     controlsRef.current = controls;
 
-    // 5. Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+    // 5. Lighting (bright, natural lighting for clear 3D visibility from all camera angles)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
     scene.add(ambientLight);
 
-    const sunLight = new THREE.DirectionalLight(0xfff8ed, 1.4);
+    const sunLight = new THREE.DirectionalLight(0xfff8ed, 1.5);
     sunLight.position.set(120, 220, 90);
     sunLight.castShadow = true;
     sunLight.shadow.mapSize.width = 2048;
     sunLight.shadow.mapSize.height = 2048;
     scene.add(sunLight);
 
-    const skyFill = new THREE.HemisphereLight(0x38bdf8, 0x0f172a, 0.45);
+    const skyFill = new THREE.HemisphereLight(0x38bdf8, 0x0f172a, 0.55);
     scene.add(skyFill);
 
     // 6. Build Real 3D Terrain Mesh from Metric DSM
@@ -156,20 +140,7 @@ export default function TerrainViewer({
       verticalExaggeration: verticalExaggeration,
     });
 
-    // 7. Load Textures
-    const textureLoader = new THREE.TextureLoader();
-    let rgbTexture = null;
-    if (loadedMeshMeta.texture_url) {
-      rgbTexture = textureLoader.load(
-        loadedMeshMeta.texture_url,
-        () => { renderer.render(scene, camera); },
-        undefined,
-        (err) => { console.warn('Could not load RGB texture, fallback to color texture:', err); }
-      );
-      rgbTexture.wrapS = THREE.ClampToEdgeWrapping;
-      rgbTexture.wrapT = THREE.ClampToEdgeWrapping;
-    }
-
+    // 7. Textures (Elevation Colormap, Slope, & Optical Satellite)
     const colorTexture = createElevationColorTexture(
       loadedMeshMeta.heights,
       loadedMeshMeta.rows,
@@ -186,22 +157,60 @@ export default function TerrainViewer({
       planeSize
     );
 
-    let activeTexture = colorTexture;
-    if (effectiveTextureMode === 'rgb' && rgbTexture) {
-      activeTexture = rgbTexture;
-    } else if (effectiveTextureMode === 'slope') {
-      activeTexture = slopeTexture;
+    // Default to color elevation ramp while optical texture loads to prevent any black render
+    let initialTexture = colorTexture;
+    if (effectiveTextureMode === 'slope') {
+      initialTexture = slopeTexture;
     } else if (effectiveTextureMode === 'colormap') {
-      activeTexture = colorTexture;
+      initialTexture = colorTexture;
     }
 
     const terrainMaterial = new THREE.MeshStandardMaterial({
-      map: effectiveTextureMode === 'wireframe' ? null : activeTexture,
+      map: effectiveTextureMode === 'wireframe' ? null : initialTexture,
       wireframe: effectiveTextureMode === 'wireframe',
-      roughness: 0.85,
+      roughness: 0.75,
       metalness: 0.05,
       flatShading: false,
     });
+
+    // Asynchronously load RGB optical texture with bundled fallback
+    const textureLoader = new THREE.TextureLoader();
+    const primaryTextureUrl = loadedMeshMeta.texture_url || sampleOpticalImg;
+
+    const loadTextureWithFallback = (url, isFallback = false) => {
+      textureLoader.load(
+        url,
+        (loadedTex) => {
+          loadedTex.wrapS = THREE.ClampToEdgeWrapping;
+          loadedTex.wrapT = THREE.ClampToEdgeWrapping;
+          loadedTex.needsUpdate = true;
+          if (effectiveTextureMode === 'rgb') {
+            terrainMaterial.map = loadedTex;
+            terrainMaterial.needsUpdate = true;
+            if (rendererRef.current && sceneRef.current && cameraRef.current) {
+              rendererRef.current.render(sceneRef.current, cameraRef.current);
+            }
+          }
+        },
+        undefined,
+        (err) => {
+          console.warn('[DepthWizard] Optical texture failed to load, falling back:', err);
+          if (!isFallback && url !== sampleOpticalImg) {
+            loadTextureWithFallback(sampleOpticalImg, true);
+          } else {
+            // Keep procedural elevation color texture active
+            if (effectiveTextureMode === 'rgb') {
+              terrainMaterial.map = colorTexture;
+              terrainMaterial.needsUpdate = true;
+            }
+          }
+        }
+      );
+    };
+
+    if (effectiveTextureMode === 'rgb') {
+      loadTextureWithFallback(primaryTextureUrl);
+    }
 
     const terrainMesh = new THREE.Mesh(geometry, terrainMaterial);
     terrainMesh.receiveShadow = true;
