@@ -2556,6 +2556,322 @@ code, .font-mono {
   margin: 0;
 }
 
+/* Metric Card Layout & Comparison Rows */
+.metric-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 10px;
+}
+
+.metric-tag-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #475569;
+}
+
+.metric-direction-tag {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+}
+
+.metric-direction-tag.lower {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.metric-direction-tag.higher {
+  background: #f0f9ff;
+  color: #0284c7;
+  border: 1px solid #bae6fd;
+}
+
+.metric-comparison-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  gap: 8px;
+}
+
+.metric-column {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.comp-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+}
+
+.metric-column.after .comp-label {
+  color: #0284c7;
+}
+
+.comp-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.comp-number {
+  font-size: 22px;
+  font-weight: 800;
+  font-family: var(--font-mono, monospace);
+  color: #1e293b;
+}
+
+.text-emerald {
+  color: #059669 !important;
+}
+
+.comp-unit {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.comp-subtext {
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.comp-arrow-divider {
+  font-size: 16px;
+  font-weight: 700;
+  color: #cbd5e1;
+  padding: 0 4px;
+}
+
+.metric-delta-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+}
+
+.metric-delta-footer.positive {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #047857;
+}
+
+.metric-delta-footer.neutral {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+}
+
+/* Visual Comparison Box & Charts */
+.eval-comparison-visual-box {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.visual-box-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.visual-box-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.visual-box-tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: #0369a1;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+}
+
+.comparison-figure-wrapper {
+  border: 1px solid #cbd5e1;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.comparison-figure-img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.accuracy-summary-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+}
+
+.summary-bar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bar-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.bar-title {
+  font-weight: 600;
+  color: #334155;
+}
+
+.bar-values {
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  color: #0f172a;
+}
+
+.bar-track-dual {
+  height: 10px;
+  background: #e2e8f0;
+  border-radius: 5px;
+  overflow: hidden;
+  position: relative;
+}
+
+.bar-fill-seg {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.4s ease;
+}
+
+.bar-fill-seg.before {
+  background: #94a3b8;
+}
+
+.bar-fill-seg.after {
+  background: #0284c7;
+}
+
+.visual-caption-note {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0;
+}
+
+/* Provenance & Methodology Grid */
+.provenance-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.prov-item {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.prov-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+}
+
+.prov-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.prov-sub {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.provenance-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 14px;
+}
+
+.prov-notice-text {
+  font-size: 12px;
+  color: #475569;
+  flex: 1;
+}
+
+.prov-download-links {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-prov-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.btn-prov-link:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
 /* ==========================================================================
    11. COMPREHENSIVE RESPONSIVE DESIGN & MULTI-DEVICE SUPPORT
    ========================================================================== */
