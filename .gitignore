@@ -32,6 +32,7 @@ outputs/depth/*.npy
 outputs/depth/*.png
 outputs/dsm/*.tif
 outputs/dsm/*.png
+outputs/dsm/*.npy
 outputs/meshes/*.glb
 outputs/meshes/*.obj
 outputs/meshes/*.ply
