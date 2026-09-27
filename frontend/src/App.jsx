@@ -18,11 +18,14 @@ export default function App() {
   // System & Backend Status
   const [systemStatus, setSystemStatus] = useState(null);
 
+  // Dynamic API Base URL (empty string for same-origin relative requests in production/Vercel)
+  const API_BASE = import.meta.env.VITE_API_URL || '';
+
   // Upload & File state
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileName, setFileName] = useState('sample_gamus_optical.png');
   const [fileFormat, setFileFormat] = useState('PNG');
-  const [filePreviewUrl, setFilePreviewUrl] = useState('http://localhost:8000/static/data/sample/sample_gamus_optical.png');
+  const [filePreviewUrl, setFilePreviewUrl] = useState(`${API_BASE}/static/data/sample/sample_gamus_optical.png`);
 
   // Pipeline Execution State
   const [pipelineState, setPipelineState] = useState('idle'); // 'idle' | 'running' | 'completed' | 'error'
@@ -40,7 +43,7 @@ export default function App() {
 
   // Fetch initial health and pre-loaded mesh
   useEffect(() => {
-    fetch('http://localhost:8000/api/health')
+    fetch(`${API_BASE}/api/health`)
       .then((res) => res.json())
       .then((data) => setSystemStatus(data))
       .catch((err) => {
@@ -48,7 +51,7 @@ export default function App() {
       });
 
     // Preload default mesh
-    fetch('http://localhost:8000/api/terrain/mesh?resolution=128')
+    fetch(`${API_BASE}/api/terrain/mesh?resolution=128`)
       .then((res) => {
         if (!res.ok) throw new Error('Could not load default mesh');
         return res.json();
@@ -84,7 +87,7 @@ export default function App() {
     setSelectedFile(null);
     setFileName('sample_gamus_optical.png');
     setFileFormat('PNG');
-    setFilePreviewUrl('http://localhost:8000/static/data/sample/sample_gamus_optical.png');
+    setFilePreviewUrl(`${API_BASE}/static/data/sample/sample_gamus_optical.png`);
   };
 
   // Run the end-to-end pipeline: RGB -> Depth (DA3) -> Calibration -> DSM -> 3D Terrain
@@ -98,7 +101,7 @@ export default function App() {
     }
 
     try {
-      const response = await fetch('http://localhost:8000/api/pipeline/run?gsd_m=0.5&mesh_resolution=128', {
+      const response = await fetch(`${API_BASE}/api/pipeline/run?gsd_m=0.5&mesh_resolution=128`, {
         method: 'POST',
         body: formData,
       });
@@ -122,8 +125,8 @@ export default function App() {
           max_height: t3d.max_height,
           mean_height: t3d.mean_height,
           heights: t3d.heights,
-          texture_url: `http://localhost:8000${t3d.texture_url}?t=${Date.now()}`,
-          dsm_vis_url: `http://localhost:8000${t3d.dsm_vis_url}?t=${Date.now()}`,
+          texture_url: `${API_BASE}${t3d.texture_url}?t=${Date.now()}`,
+          dsm_vis_url: `${API_BASE}${t3d.dsm_vis_url}?t=${Date.now()}`,
         });
       }
 
@@ -141,7 +144,7 @@ export default function App() {
 
   // Direct export of the generated GeoTIFF DSM
   const handleExportDSM = () => {
-    window.open('http://localhost:8000/static/outputs/dsm/dsm.tif', '_blank');
+    window.open(`${API_BASE}/static/outputs/dsm/dsm.tif`, '_blank');
   };
 
   // Navigation click handler

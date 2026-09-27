@@ -59,8 +59,9 @@ export default function TerrainViewer({
       return;
     }
 
+    const API_BASE = import.meta.env.VITE_API_URL || '';
     setIsLoading(true);
-    fetch('http://localhost:8000/api/terrain/mesh?resolution=128')
+    fetch(`${API_BASE}/api/terrain/mesh?resolution=128`)
       .then((res) => {
         if (!res.ok) throw new Error('DSM mesh endpoint error');
         return res.json();
@@ -87,7 +88,7 @@ export default function TerrainViewer({
           max_height: 12.84,
           mean_height: 7.85,
           heights: Array.from(heights),
-          texture_url: 'http://localhost:8000/static/data/sample/sample_gamus_optical.png',
+          texture_url: `${API_BASE}/static/data/sample/sample_gamus_optical.png`,
         });
         setIsLoading(false);
       });

@@ -42,14 +42,50 @@ if settings.DATA_DIR.exists():
 # Include API routes
 app.include_router(api_router)
 
-@app.get("/")
-def root():
+@app.get("/api")
+def api_meta():
+    """Returns API metadata and documentation links."""
     return {
         "title": settings.PROJECT_NAME,
         "description": settings.DESCRIPTION,
         "docs_url": "/docs",
         "api_health": "/api/health"
     }
+
+# Mount frontend compiled static assets and SPA routes
+_frontend_dist = _project_root / "frontend" / "dist"
+_assets_dir = _frontend_dist / "assets"
+
+if _assets_dir.exists():
+    app.mount("/assets", StaticFiles(directory=_assets_dir), name="frontend_assets")
+
+@app.get("/")
+def serve_index():
+    """Serves the visual DepthWizard React + Three.js MVP web application."""
+    index_file = _frontend_dist / "index.html"
+    if index_file.exists():
+        from fastapi.responses import FileResponse
+        return FileResponse(index_file)
+    return {
+        "title": settings.PROJECT_NAME,
+        "description": settings.DESCRIPTION,
+        "docs_url": "/docs",
+        "api_health": "/api/health"
+    }
+
+@app.get("/{full_path:path}")
+def serve_spa_fallback(full_path: str):
+    """Fallback handler for SPA client routing and root assets (e.g. favicon.svg)."""
+    candidate = _frontend_dist / full_path
+    if candidate.exists() and candidate.is_file():
+        from fastapi.responses import FileResponse
+        return FileResponse(candidate)
+    index_file = _frontend_dist / "index.html"
+    if index_file.exists():
+        from fastapi.responses import FileResponse
+        return FileResponse(index_file)
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=404, content={"detail": f"Path '{full_path}' not found"})
 
 if __name__ == "__main__":
     import uvicorn

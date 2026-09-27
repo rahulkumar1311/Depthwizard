@@ -3,7 +3,7 @@
   "functions": {
     "backend/app/main.py": {
       "maxDuration": 60,
-      "excludeFiles": "{data/**,models/**,outputs/**,notebooks/**,scripts/**,pip_cache/**,frontend/**}"
+      "excludeFiles": "{data/**,models/**,outputs/**,notebooks/**,scripts/**,pip_cache/**,frontend/node_modules/**}"
     }
   }
 }
