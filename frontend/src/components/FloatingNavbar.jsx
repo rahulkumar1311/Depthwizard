@@ -87,16 +87,18 @@ export default function FloatingNavbar({
             onClick={onRunDemo}
             disabled={isRunning}
             title="Execute End-to-End DA3 Pipeline with Sample Optical Imagery"
+            aria-label="Run Live Demo"
           >
             {isRunning ? (
               <>
                 <span className="nav-spinner" />
-                <span>Processing...</span>
+                <span className="nav-demo-text">Processing...</span>
               </>
             ) : (
               <>
                 <Sparkles size={13} className="text-blue-500" />
-                <span>Live Demo</span>
+                <span className="nav-demo-text">Live Demo</span>
+                <span className="nav-demo-text-short">Demo</span>
               </>
             )}
           </button>
@@ -106,6 +108,7 @@ export default function FloatingNavbar({
             className="nav-icon-btn"
             onClick={onOpenSettings}
             title="System Diagnostics & Settings"
+            aria-label="Settings"
           >
             <SettingsIcon size={16} />
           </button>
@@ -114,6 +117,7 @@ export default function FloatingNavbar({
           <button
             className="nav-mobile-toggle"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label={mobileMenuOpen ? 'Close Menu' : 'Open Menu'}
           >
             {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
@@ -122,23 +126,36 @@ export default function FloatingNavbar({
 
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="mobile-nav-dropdown">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              className={`mobile-nav-link ${activeNav === item.id ? 'active' : ''}`}
-              onClick={() => handleNavClick(item.id)}
-            >
-              <span>{item.label}</span>
-              <ChevronRight size={14} />
-            </button>
-          ))}
-          <div className="mobile-nav-actions">
-            <button className="mobile-demo-btn" onClick={() => { setMobileMenuOpen(false); onRunDemo?.(); }}>
-              Run Live DA3 Demo
-            </button>
+        <>
+          <div className="mobile-nav-backdrop" onClick={() => setMobileMenuOpen(false)} />
+          <div className="mobile-nav-dropdown">
+            <div className="mobile-nav-links-list">
+              {navItems.map((item) => (
+                <button
+                  key={item.id}
+                  className={`mobile-nav-link ${activeNav === item.id ? 'active' : ''}`}
+                  onClick={() => handleNavClick(item.id)}
+                >
+                  <span>{item.label}</span>
+                  <ChevronRight size={14} />
+                </button>
+              ))}
+            </div>
+            <div className="mobile-nav-actions">
+              <button
+                className="mobile-demo-btn"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onRunDemo?.();
+                }}
+                disabled={isRunning}
+              >
+                <Sparkles size={15} />
+                <span>{isRunning ? 'Running DA3 Demo...' : 'Run Live DA3 Demo'}</span>
+              </button>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </header>
   );
