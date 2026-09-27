@@ -1,4 +1,14 @@
-"""DepthWizard FastAPI Main Application"""
+import sys
+from pathlib import Path
+
+# Ensure backend and project root directories are in sys.path for root entrypoint execution
+_current_dir = Path(__file__).resolve().parent
+_backend_dir = _current_dir.parent
+_project_root = _backend_dir.parent
+
+for _p in [str(_backend_dir), str(_project_root)]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
