@@ -38,11 +38,20 @@ class AffineCalibrator:
     """Estimates and applies affine scale calibration: H = a * D + b."""
 
     def __init__(self, outputs_dir: Optional[Union[str, Path]] = None):
-        if outputs_dir is None:
-            self.outputs_dir = Path(__file__).resolve().parent.parent.parent / "outputs" / "dsm"
-        else:
+        if outputs_dir is not None:
             self.outputs_dir = Path(outputs_dir)
-        self.outputs_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            try:
+                from app.config import DSM_OUTPUTS
+                self.outputs_dir = DSM_OUTPUTS
+            except Exception:
+                self.outputs_dir = Path(__file__).resolve().parent.parent.parent / "outputs" / "dsm"
+        try:
+            self.outputs_dir.mkdir(parents=True, exist_ok=True)
+        except (OSError, PermissionError):
+            import tempfile
+            self.outputs_dir = Path(tempfile.gettempdir()) / "depthwizard_outputs" / "dsm"
+            self.outputs_dir.mkdir(parents=True, exist_ok=True)
 
     def load_relative_depth(
         self, depth_source: Union[str, Path, bytes, np.ndarray, Image.Image]

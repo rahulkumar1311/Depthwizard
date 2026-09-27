@@ -23,7 +23,12 @@ def export_accuracy_reports(
 ) -> Dict[str, str]:
     """Saves accuracy_report.json and accuracy_report.csv to output_dir."""
     out_p = Path(output_dir)
-    out_p.mkdir(parents=True, exist_ok=True)
+    try:
+        out_p.mkdir(parents=True, exist_ok=True)
+    except (OSError, PermissionError):
+        import tempfile
+        out_p = Path(tempfile.gettempdir()) / "depthwizard_outputs" / "evaluation"
+        out_p.mkdir(parents=True, exist_ok=True)
 
     json_path = out_p / "accuracy_report.json"
     csv_path = out_p / "accuracy_report.csv"
@@ -94,7 +99,12 @@ def generate_comparison_figure(
     Bottom Row: Metric Error Comparison Bar Charts (RMSE, MAE, Pearson r).
     """
     out_p = Path(output_dir)
-    out_p.mkdir(parents=True, exist_ok=True)
+    try:
+        out_p.mkdir(parents=True, exist_ok=True)
+    except (OSError, PermissionError):
+        import tempfile
+        out_p = Path(tempfile.gettempdir()) / "depthwizard_outputs" / "evaluation"
+        out_p.mkdir(parents=True, exist_ok=True)
     fig_path = out_p / filename
 
     preds = sample_eval.get("predictions", {})

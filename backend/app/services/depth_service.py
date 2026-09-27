@@ -114,12 +114,14 @@ class DepthService:
         # Save to outputs directory
         stem = Path(filename).stem
         depth_out_dir = settings.OUTPUTS_DIR / "depth"
-        depth_out_dir.mkdir(parents=True, exist_ok=True)
         png_path = depth_out_dir / f"{stem}_relative_depth.png"
         npy_path = depth_out_dir / f"{stem}_relative_depth.npy"
-
-        colored_img.save(png_path)
-        np.save(npy_path, raw_depth)
+        try:
+            depth_out_dir.mkdir(parents=True, exist_ok=True)
+            colored_img.save(png_path)
+            np.save(npy_path, raw_depth)
+        except Exception as e:
+            logger.warning(f"Could not persist depth files to disk: {e}")
 
         return {
             "status": "success",

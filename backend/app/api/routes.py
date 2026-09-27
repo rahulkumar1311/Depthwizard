@@ -288,14 +288,25 @@ async def run_end_to_end_pipeline(
         rgb_arr, geo_meta = dsm_generator.load_rgb_image(img_bytes)
         pil_img = Image.fromarray(rgb_arr)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid or unsupported image file: {str(e)}")
+        try:
+            import io
+            pil_img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+            rgb_arr = np.array(pil_img)
+            geo_meta = {"is_georeferenced": False, "crs": "EPSG:3857"}
+        except Exception:
+            raise HTTPException(status_code=400, detail=f"Invalid or unsupported image file: {str(e)}")
 
     in_w, in_h = pil_img.size
 
     # Save copy as web texture
     texture_dest = settings.OUTPUTS_DIR / "depth" / "active_texture.png"
-    pil_img.save(texture_dest)
-    texture_url = f"/static/outputs/depth/{texture_dest.name}"
+    try:
+        texture_dest.parent.mkdir(parents=True, exist_ok=True)
+        pil_img.save(texture_dest)
+        texture_url = f"/static/outputs/depth/{texture_dest.name}"
+    except Exception as e:
+        logger.warning(f"Could not save active texture to disk: {e}")
+        texture_url = "/static/outputs/depth/active_texture.png"
 
     stage_1 = {
         "stage": "RGB IMAGE",

@@ -34,8 +34,17 @@ if str(workspace_dir) not in sys.path:
 if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
 
-outputs_dsm_dir = workspace_dir / "outputs" / "dsm"
-outputs_dsm_dir.mkdir(parents=True, exist_ok=True)
+try:
+    from app.config import DSM_OUTPUTS
+    outputs_dsm_dir = DSM_OUTPUTS
+except Exception:
+    import tempfile
+    try:
+        outputs_dsm_dir = workspace_dir / "outputs" / "dsm"
+        outputs_dsm_dir.mkdir(parents=True, exist_ok=True)
+    except (OSError, PermissionError):
+        outputs_dsm_dir = Path(tempfile.gettempdir()) / "depthwizard_outputs" / "dsm"
+        outputs_dsm_dir.mkdir(parents=True, exist_ok=True)
 
 try:
     import rasterio

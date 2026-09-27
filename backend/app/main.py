@@ -23,16 +23,21 @@ app = FastAPI(
     version=settings.VERSION,
 )
 
-# CORS configuration for React + Vite frontend
+# CORS configuration for React + Vite frontend and Vercel cloud deployments
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Mount outputs and data directories as static files (if directories exist)
+# Ensure outputs directory exists and mount static routes
+try:
+    settings.OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass
+
 if settings.OUTPUTS_DIR.exists():
     app.mount("/static/outputs", StaticFiles(directory=settings.OUTPUTS_DIR), name="outputs")
 if settings.DATA_DIR.exists():
