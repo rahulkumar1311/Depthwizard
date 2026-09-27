@@ -205,31 +205,42 @@ class DSMGenerator:
         offset_b: Optional[float] = None,
     ) -> Tuple[np.ndarray, Dict[str, Any]]:
         """Calibrates relative depth map to metric height in meters: H = a * D + b.
-        Uses actual reference elevation if supplied, or calibrated parameters.
+        Uses supplied calibrated parameters or actual reference elevation if supplied.
         """
         try:
             from backend.calibration.affine_calibration import affine_calibrator
         except ImportError:
             from calibration.affine_calibration import affine_calibrator
 
-        if reference_elevation is not None:
-            # Calibrate against actual ground reference data
-            calib_res = affine_calibrator.calibrate(
-                rel_depth_source=rel_depth,
-                ref_elevation_source=reference_elevation,
-            )
-            a = calib_res["calibration_parameters"]["scale_factor_a"]
-            b = calib_res["calibration_parameters"]["offset_b"]
-            calib_meta = calib_res["calibration_parameters"]
-        elif scale_a is not None and offset_b is not None:
+        # 1. If explicit scale_a and offset_b are provided, use them directly
+        if scale_a is not None and offset_b is not None:
             a = float(scale_a)
             b = float(offset_b)
-            calib_meta = {"scale_factor_a": a, "offset_b": b, "source": "user_provided"}
+            calib_meta = {"scale_factor_a": a, "offset_b": b, "source": "calibrated_parameters"}
+        elif reference_elevation is not None:
+            # 2. Try calibrating against reference elevation with safe fallback
+            try:
+                calib_res = affine_calibrator.calibrate(
+                    rel_depth_source=rel_depth,
+                    ref_elevation_source=reference_elevation,
+                )
+                a = calib_res["calibration_parameters"]["scale_factor_a"]
+                b = calib_res["calibration_parameters"]["offset_b"]
+                calib_meta = calib_res["calibration_parameters"]
+            except Exception as e:
+                # Safe fallback to learned GAMUS remote sensing baseline
+                a = -9.262667
+                b = 17.8043
+                calib_meta = {
+                    "scale_factor_a": a,
+                    "offset_b": b,
+                    "source": "fallback_learned_baseline",
+                    "note": f"Ground reference calibration failed ({e}); used learned remote sensing baseline.",
+                }
         else:
-            # Default learned affine parameters for urban/suburban remote sensing (from Depth Anything 3 GAMUS calibration)
-            # a = -54.935887, b = 65.3348 (calibrating DA3 camera-ray depth to positive ground elevation)
-            a = -54.935887
-            b = 65.3348
+            # 3. Default learned affine parameters for remote sensing (GAMUS baseline)
+            a = -9.262667
+            b = 17.8043
             calib_meta = {"scale_factor_a": a, "offset_b": b, "source": "da3_gamus_calibrated_baseline"}
 
         # Compute metric elevation: H = a * D + b
@@ -260,6 +271,8 @@ class DSMGenerator:
             pixel_size = float(gsd_m) if gsd_m is not None else self.default_gsd_m
         except (TypeError, ValueError):
             pixel_size = self.default_gsd_m
+
+        nodata = nodata_val if nodata_val is not None else self.default_nodata
 
         if geo_meta and geo_meta.get("is_georeferenced") and geo_meta.get("crs") and geo_meta.get("transform"):
             # Preserve existing GeoTIFF CRS and affine geotransform
@@ -359,6 +372,7 @@ class DSMGenerator:
         output_dsm_path: Optional[Union[str, Path]] = None,
         gsd_m: Optional[float] = None,
         colormap: str = "terrain",
+        rel_depth: Optional[np.ndarray] = None,
     ) -> Dict[str, Any]:
         """Complete DSM Generation Pipeline:
         RGB Input -> Relative Depth -> Metric Elevation -> Georeferenced GeoTIFF & Visualization.
@@ -367,8 +381,9 @@ class DSMGenerator:
         rgb_arr, geo_meta = self.load_rgb_image(image_input)
         h, w = rgb_arr.shape[:2]
 
-        # 2. Compute Monocular Relative Depth via Depth Anything 3
-        rel_depth = self.infer_relative_depth(rgb_arr)
+        # 2. Compute Monocular Relative Depth via Depth Anything 3 (if not precomputed)
+        if rel_depth is None:
+            rel_depth = self.infer_relative_depth(rgb_arr)
 
         # 3. Calibrate to Metric Elevation (H = a * D + b)
         metric_elevation, calib_meta = self.calibrate_relative_to_metric(

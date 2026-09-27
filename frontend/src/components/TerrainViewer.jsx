@@ -61,7 +61,7 @@ export default function TerrainViewer({
       return;
     }
 
-    const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '');
+    const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://127.0.0.1:8000' : '');
     fetch(`${API_BASE}/api/terrain/mesh?resolution=128`)
       .then((res) => {
         if (!res.ok) throw new Error('Live DSM mesh endpoint unavailable');

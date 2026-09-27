@@ -21,8 +21,8 @@ export default function App() {
   // System & Backend Status
   const [systemStatus, setSystemStatus] = useState(null);
 
-  // Dynamic API Base URL (prioritizes VITE_API_BASE_URL, with local fallback for dev)
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '');
+  // Dynamic API Base URL (prioritizes VITE_API_BASE_URL, with local 127.0.0.1 fallback for dev)
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://127.0.0.1:8000' : '');
 
   // Upload & File state
   const [selectedFile, setSelectedFile] = useState(null);
@@ -112,8 +112,13 @@ export default function App() {
       if (!response.ok) {
         let errMsg = `Server returned HTTP ${response.status} (${response.statusText || 'Error'})`;
         try {
-          const errJson = await response.json();
-          if (errJson && errJson.detail) errMsg = errJson.detail;
+          const errText = await response.text();
+          try {
+            const errJson = JSON.parse(errText);
+            if (errJson && errJson.detail) errMsg = errJson.detail;
+          } catch (_) {
+            if (errText && errText.trim().length > 0) errMsg = errText;
+          }
         } catch (_) {}
         throw new Error(errMsg);
       }

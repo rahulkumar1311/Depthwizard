@@ -23,6 +23,11 @@ app = FastAPI(
     version=settings.VERSION,
 )
 
+from fastapi.responses import JSONResponse
+import logging
+
+logger = logging.getLogger(__name__)
+
 # CORS configuration for React + Vite frontend and Vercel cloud deployments
 app.add_middleware(
     CORSMiddleware,
@@ -31,6 +36,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    logger.exception(f"Unhandled error: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Server error: {str(exc)}"},
+        headers={"Access-Control-Allow-Origin": "*"}
+    )
 
 # Ensure outputs directory exists and mount static routes
 try:
