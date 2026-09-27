@@ -271,17 +271,27 @@ async def run_end_to_end_pipeline(
     t0 = time.time()
 
     # 1. Stage 1: RGB Ingestion
-    sample_img_path = settings.DATA_DIR / "sample" / "sample_gamus_optical.png"
+    sample_img_candidates = [
+        settings.DATA_DIR / "sample" / "sample_gamus_optical.png",
+        Path(__file__).resolve().parent.parent / "services" / "sample_gamus_optical.png",
+        settings.BASE_DIR / "frontend" / "src" / "assets" / "sample_gamus_optical.png",
+        settings.BASE_DIR / "frontend" / "public" / "static" / "data" / "sample" / "sample_gamus_optical.png",
+    ]
+    img_bytes = b""
+    filename = "sample_gamus_optical.png"
     if file is not None:
         img_bytes = await file.read()
         filename = file.filename or "uploaded_image.png"
     else:
-        with open(sample_img_path, "rb") as f:
-            img_bytes = f.read()
-        filename = sample_img_path.name
+        for p in sample_img_candidates:
+            if p.exists():
+                with open(p, "rb") as f:
+                    img_bytes = f.read()
+                filename = p.name
+                break
 
     if len(img_bytes) == 0:
-        raise HTTPException(status_code=400, detail="Uploaded image file is empty.")
+        raise HTTPException(status_code=400, detail="Uploaded image file is empty or sample image could not be loaded.")
 
     try:
         from dsm.dsm_generator import dsm_generator
@@ -474,24 +484,36 @@ def analyze_elevation_profile(req: ProfileRequest):
 @router.get("/evaluate/summary")
 def get_evaluation_summary():
     """Returns the latest benchmark evaluation results comparing Pretrained DA3 vs DepthWizard."""
-    report_path = settings.OUTPUTS_DIR / "evaluation" / "accuracy_report.json"
-    if not report_path.exists():
-        # Run evaluator on the real validation set
-        try:
-            from evaluation.evaluator import DepthWizardEvaluator
-            from evaluation.comparison import export_accuracy_reports, generate_comparison_figure
-            evaluator = DepthWizardEvaluator(device=settings.DEVICE)
-            manifest_p = settings.BASE_DIR / "data" / "GAMUS_mvp" / "manifest.csv"
-            res = evaluator.evaluate_dataset(manifest_p, split="val")
-            export_accuracy_reports(res, output_dir=settings.OUTPUTS_DIR / "evaluation")
-            # Generate sample visual comparison
-            rgb_p = settings.BASE_DIR / "data" / "GAMUS_mvp" / "val" / "DC_02_26_RGB.h5"
-            ref_p = settings.BASE_DIR / "data" / "GAMUS_mvp" / "val" / "DC_02_26_AGL.h5"
-            s_res = evaluator.evaluate_sample(rgb_p, ref_p, sample_name="DC_02_26")
-            rgb_arr = evaluator.load_rgb(rgb_p)
-            generate_comparison_figure(s_res, rgb_arr, output_dir=settings.OUTPUTS_DIR / "evaluation")
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to generate evaluation report: {e}")
+    report_candidates = [
+        settings.OUTPUTS_DIR / "evaluation" / "accuracy_report.json",
+        Path(__file__).resolve().parent.parent / "services" / "accuracy_report.json",
+        settings.BASE_DIR / "frontend" / "public" / "static" / "outputs" / "evaluation" / "accuracy_report.json",
+    ]
+    report_path = None
+    for p in report_candidates:
+        if p.exists():
+            report_path = p
+            break
+
+    if report_path is None:
+        manifest_p = settings.BASE_DIR / "data" / "GAMUS_mvp" / "manifest.csv"
+        if manifest_p.exists():
+            try:
+                from evaluation.evaluator import DepthWizardEvaluator
+                from evaluation.comparison import export_accuracy_reports, generate_comparison_figure
+                evaluator = DepthWizardEvaluator(device=settings.DEVICE)
+                res = evaluator.evaluate_dataset(manifest_p, split="val")
+                export_accuracy_reports(res, output_dir=settings.OUTPUTS_DIR / "evaluation")
+                rgb_p = settings.BASE_DIR / "data" / "GAMUS_mvp" / "val" / "DC_02_26_RGB.h5"
+                ref_p = settings.BASE_DIR / "data" / "GAMUS_mvp" / "val" / "DC_02_26_AGL.h5"
+                s_res = evaluator.evaluate_sample(rgb_p, ref_p, sample_name="DC_02_26")
+                rgb_arr = evaluator.load_rgb(rgb_p)
+                generate_comparison_figure(s_res, rgb_arr, output_dir=settings.OUTPUTS_DIR / "evaluation")
+                report_path = settings.OUTPUTS_DIR / "evaluation" / "accuracy_report.json"
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to generate evaluation report: {e}")
+        else:
+            raise HTTPException(status_code=404, detail="Evaluation dataset unavailable in deployment environment.")
 
     with open(report_path, mode="r", encoding="utf-8") as f:
         import json
@@ -513,17 +535,12 @@ async def evaluate_accuracy(
     sample_name: Optional[str] = Query("validation_sample"),
 ):
     """Evaluates Baseline (Pretrained DA3) vs After (DepthWizard Calibrated) against reference elevation."""
-    from evaluation.evaluator import DepthWizardEvaluator
-    evaluator = DepthWizardEvaluator(device=settings.DEVICE)
-
-    # If files are uploaded, use them; otherwise use held-out GAMUS validation pair DC_02_26
     if rgb_file is not None and reference_file is not None:
         rgb_bytes = await rgb_file.read()
         ref_bytes = await reference_file.read()
         import io
         from PIL import Image
         rgb_src = Image.open(io.BytesIO(rgb_bytes)).convert("RGB")
-        # Reference can be .npy, .h5, or geotiff image
         ref_src = ref_bytes
         s_name = sample_name or Path(rgb_file.filename).stem
     else:
@@ -531,13 +548,19 @@ async def evaluate_accuracy(
         rgb_src = settings.BASE_DIR / "data" / "GAMUS_mvp" / "val" / "DC_02_26_RGB.h5"
         ref_src = settings.BASE_DIR / "data" / "GAMUS_mvp" / "val" / "DC_02_26_AGL.h5"
         s_name = "DC_02_26"
+        if not (Path(rgb_src).exists() and Path(ref_src).exists()):
+            raise HTTPException(
+                status_code=400,
+                detail="Evaluation dataset unavailable in deployment environment. Please upload an RGB image and reference elevation pair to evaluate.",
+            )
 
+    from evaluation.evaluator import DepthWizardEvaluator
+    evaluator = DepthWizardEvaluator(device=settings.DEVICE)
     try:
         eval_res = evaluator.evaluate_sample(rgb_src, ref_src, sample_name=s_name)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Accuracy evaluation failed: {e}")
 
-    # Strip heavy arrays for API response
     clean_response = {k: v for k, v in eval_res.items() if k != "predictions"}
     clean_response["artifacts"] = {
         "comparison_image_url": "/static/outputs/evaluation/comparison.png",

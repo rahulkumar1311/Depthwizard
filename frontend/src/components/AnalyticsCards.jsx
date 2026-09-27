@@ -5,20 +5,33 @@ export default function AnalyticsCards({
   pipelineResult = null,
   dsmMesh = null,
   selectedMeasurement = null,
+  pipelineState = 'idle',
 }) {
   const isCompleted = pipelineResult !== null;
+  const isRunning = pipelineState === 'running';
+  const isError = pipelineState === 'error';
 
   // 1. RELATIVE DEPTH
   const stage2 = pipelineResult?.stages?.relative_depth;
-  const relDepthStatus = isCompleted ? 'Generated' : 'Standby';
-  const relDepthValue = stage2 ? `[${stage2.min_depth}, ${stage2.max_depth}]` : 'Standby';
-  const relDepthSub = stage2 ? 'Relative Ray Depth Range' : 'Depth Anything 3';
+  const relDepthStatus = isCompleted ? 'Generated' : isRunning ? 'Estimating...' : isError ? 'Error' : 'Standby';
+  const relDepthValue = stage2
+    ? `[${stage2.min_depth}, ${stage2.max_depth}]`
+    : isRunning
+    ? 'Inference...'
+    : isError
+    ? 'Depth Failed'
+    : 'Standby';
+  const relDepthSub = stage2 ? 'Relative Ray Depth Range' : isError ? 'Inference Error' : 'Depth Anything 3';
 
   // 2. METRIC DSM
   const stage4 = pipelineResult?.stages?.dsm;
-  const dsmStatus = isCompleted || dsmMesh ? 'Ready' : 'Standby';
+  const dsmStatus = isCompleted ? 'Ready' : isRunning ? 'Calibrating...' : isError ? 'Error' : dsmMesh ? 'Ready' : 'Standby';
   const dsmValue = stage4
     ? `${stage4.minimum_elevation.toFixed(1)}m – ${stage4.maximum_elevation.toFixed(1)}m`
+    : isRunning
+    ? 'Generating...'
+    : isError
+    ? 'DSM Failed'
     : dsmMesh ? `${dsmMesh.min_height.toFixed(1)}m – ${dsmMesh.max_height.toFixed(1)}m` : 'outputs/dsm.tif';
   const dsmSub = stage4 ? `Mean: ${stage4.mean_elevation.toFixed(1)}m` : 'GeoTIFF Surface Raster';
 

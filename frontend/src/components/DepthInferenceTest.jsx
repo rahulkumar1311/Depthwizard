@@ -31,10 +31,11 @@ export default function DepthInferenceTest() {
     const startTime = performance.now();
 
     try {
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '');
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const response = await fetch(`http://localhost:8000/api/depth?colormap=${colormap}`, {
+      const response = await fetch(`${API_BASE}/api/depth?colormap=${colormap}`, {
         method: 'POST',
         body: formData,
       });

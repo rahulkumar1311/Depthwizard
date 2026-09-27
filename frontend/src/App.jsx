@@ -21,8 +21,8 @@ export default function App() {
   // System & Backend Status
   const [systemStatus, setSystemStatus] = useState(null);
 
-  // Dynamic API Base URL (empty string for same-origin relative requests in production/Vercel)
-  const API_BASE = import.meta.env.VITE_API_URL || '';
+  // Dynamic API Base URL (prioritizes VITE_API_BASE_URL, with local fallback for dev)
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '');
 
   // Upload & File state
   const [selectedFile, setSelectedFile] = useState(null);
@@ -110,8 +110,12 @@ export default function App() {
       });
 
       if (!response.ok) {
-        const errJson = await response.json();
-        throw new Error(errJson.detail || 'Pipeline execution failed');
+        let errMsg = `Server returned HTTP ${response.status} (${response.statusText || 'Error'})`;
+        try {
+          const errJson = await response.json();
+          if (errJson && errJson.detail) errMsg = errJson.detail;
+        } catch (_) {}
+        throw new Error(errMsg);
       }
 
       const data = await response.json();
@@ -140,7 +144,10 @@ export default function App() {
       }
     } catch (err) {
       console.error('Pipeline error:', err);
-      setPipelineError(err.message);
+      const friendlyMsg = err.message === 'Failed to fetch'
+        ? `Backend API unreachable at ${API_BASE || 'origin'}. Please verify backend service.`
+        : err.message;
+      setPipelineError(friendlyMsg);
       setPipelineState('error');
     }
   };
@@ -241,6 +248,7 @@ export default function App() {
             pipelineResult={pipelineResult}
             dsmMesh={dsmMesh}
             selectedMeasurement={selectedMeasurement}
+            pipelineState={pipelineState}
           />
         </div>
 
